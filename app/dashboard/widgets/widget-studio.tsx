@@ -30,6 +30,7 @@ type Tenant = {
   id: string;
   name: string;
   slug: string;
+  public_token?: string | null;
   logo_url?: string | null;
   primary_color?: string | null;
   secondary_color?: string | null;
@@ -217,7 +218,7 @@ export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://yourdomain.com";
   const sportsParam = allowedSports.join(",");
 
-  const scriptSnippet = `<script src="${baseUrl}/widget.js" data-tenant="${selectedTenant?.slug}" data-sports="${sportsParam}" defer></script>`;
+  const scriptSnippet = `<script src="${baseUrl}/widget.js" data-token="${selectedTenant?.public_token || ""}" data-sports="${sportsParam}" defer></script>`;
 
   const copySnippet = async () => {
     await navigator.clipboard.writeText(scriptSnippet);
@@ -423,9 +424,9 @@ export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
             </div>
             <div className="flex-1 bg-background rounded-md h-6 flex items-center px-3 border">
               <span className="text-xs font-mono text-muted-foreground truncate">
-                yourdomain.com/embed/{selectedTenant?.slug}
+                yourdomain.com/embed/verify?token={selectedTenant?.public_token}
                 {allowedSports.length > 0 && allowedSports.length < 4
-                  ? `?sports=${sportsParam}`
+                  ? `&sports=${sportsParam}`
                   : ""}
               </span>
             </div>
@@ -479,9 +480,9 @@ export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
             <span className="text-zinc-300">=</span>
             <span className="text-amber-300">{`"${baseUrl}/widget.js"`}</span>
             {"\n  "}
-            <span className="text-green-400">data-tenant</span>
+            <span className="text-green-400">data-token</span>
             <span className="text-zinc-300">=</span>
-            <span className="text-amber-300">{`"${selectedTenant?.slug}"`}</span>
+            <span className="text-amber-300">{`"${selectedTenant?.public_token || ""}"`}</span>
             {"\n  "}
             <span className="text-green-400">data-sports</span>
             <span className="text-zinc-300">=</span>
