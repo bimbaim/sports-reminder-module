@@ -6,6 +6,8 @@
     document.querySelector('script[data-token]') ||
     document.currentScript;
 
+  console.log("CURRENT SCRIPT", document.currentScript);
+
   // Jika masih belum ketemu, cari di seluruh elemen script yang memiliki data-token atau data-tenant
   if (!script) {
     var allScripts = document.getElementsByTagName("script");
