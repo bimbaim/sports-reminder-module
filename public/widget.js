@@ -19,6 +19,10 @@
   var tenant = script.getAttribute("data-tenant");
   var sports = script.getAttribute("data-sports") || "";
 
+  console.log("SCRIPT", script);
+  console.log("TOKEN", token);
+  console.log("SPORTS", sports);
+
   if (!token && !tenant) {
     console.warn("[SportsReminder] Missing data-token or data-tenant attribute.");
     return;
@@ -37,7 +41,7 @@
     try {
       var urlObject = new URL(script.src);
       base = urlObject.origin;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // 3. Build iframe source
