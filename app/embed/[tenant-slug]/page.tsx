@@ -2,6 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import { WidgetForm } from "./widget-form";
 
+
+
 export default async function EmbedWidgetPage({
   params,
   searchParams,
@@ -28,14 +30,25 @@ export default async function EmbedWidgetPage({
   const allowedSports: string[] =
     sports && sports.trim()
       ? sports
-          .split(",")
-          .map((s) => s.trim().toLowerCase())
-          .filter((s) => ALL.includes(s))
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => ALL.includes(s))
       : ALL;
+
+  // Fetch leagues matching the allowed sports categories
+  const { data: leagues } = await supabase
+    .from("leagues")
+    .select("id, name, sport_category, logo_url")
+    .in("sport_category", allowedSports)
+    .order("name", { ascending: true });
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <WidgetForm tenant={tenant} allowedSports={allowedSports} />
+      <WidgetForm
+        tenant={tenant}
+        allowedSports={allowedSports}
+        leagues={leagues || []}
+      />
     </div>
   );
 }

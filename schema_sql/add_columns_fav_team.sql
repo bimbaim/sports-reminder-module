@@ -1,0 +1,1 @@
+ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS favorite_teams TEXT[];

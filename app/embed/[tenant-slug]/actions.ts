@@ -2,6 +2,29 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export async function getTeamsForLeagues(leagueIds: number[]) {
+  if (!leagueIds || leagueIds.length === 0) return [];
+
+  const supabase = createAdminClient();
+  const { data: matches, error } = await supabase
+    .from("matches")
+    .select("competitor_a, competitor_b")
+    .in("league_id", leagueIds);
+
+  if (error) {
+    console.error("Error fetching teams for leagues:", error);
+    return [];
+  }
+
+  const teams = new Set<string>();
+  matches?.forEach((m) => {
+    if (m.competitor_a && m.competitor_a.trim()) teams.add(m.competitor_a.trim());
+    if (m.competitor_b && m.competitor_b.trim()) teams.add(m.competitor_b.trim());
+  });
+
+  return Array.from(teams).sort();
+}
+
 export async function subscribeToTenant(tenantId: string, formData: FormData) {
   try {
     const email = formData.get("email")?.toString();
@@ -9,7 +32,6 @@ export async function subscribeToTenant(tenantId: string, formData: FormData) {
     const favorite_sports = formData.getAll("favorite_sports") as string[];
     const favorite_teams_str = formData.get("favorite_teams")?.toString() || "";
     
-    // Parse teams string (e.g. from a comma separated hidden input or tag input)
     const favorite_teams = favorite_teams_str
       .split(",")
       .map((t) => t.trim())

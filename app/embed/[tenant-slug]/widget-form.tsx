@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { subscribeToTenant } from "./actions";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { useState, useEffect } from "react";
+import { subscribeToTenant, getTeamsForLeagues } from "./actions";
 
 type Tenant = {
   id: string;
@@ -14,145 +12,63 @@ type Tenant = {
   custom_cta_text?: string | null;
 };
 
-type SportConfig = {
-  id: string;
-  label: string;
-  emoji: string;
-  subLabel: string;
-  placeholder: string;
+type LeagueItem = {
+  id: number;
+  name: string;
+  sport_category: string;
+  logo_url?: string | null;
 };
 
-const SPORT_CONFIGS: SportConfig[] = [
-  {
-    id: "football",
-    label: "Football (Soccer)",
-    emoji: "⚽",
-    subLabel: "Favorite Football Clubs",
-    placeholder: "e.g. Man United, Real Madrid, Barcelona",
-  },
-  {
-    id: "ufc",
-    label: "UFC / MMA",
-    emoji: "🥊",
-    subLabel: "Favorite Athletes / Fighters",
-    placeholder: "e.g. Jon Jones, Islam Makhachev, Conor McGregor",
-  },
-  {
-    id: "nba",
-    label: "NBA Basketball",
-    emoji: "🏀",
-    subLabel: "Favorite NBA Teams",
-    placeholder: "e.g. Lakers, Golden State Warriors, Chicago Bulls",
-  },
-  {
-    id: "f1",
-    label: "Formula 1",
-    emoji: "🏎️",
-    subLabel: "Favorite F1 Teams / Drivers",
-    placeholder: "e.g. Ferrari, Max Verstappen, Lewis Hamilton",
-  },
-];
-
-// ─── Tag Input ────────────────────────────────────────────────────────────────
-
-function TagInput({
-  tags,
-  onChange,
-  placeholder,
-  primary,
-}: {
-  tags: string[];
-  onChange: (tags: string[]) => void;
-  placeholder: string;
-  primary: string;
-}) {
-  const [input, setInput] = useState("");
-
-  const addTag = (raw: string) => {
-    const items = raw
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s && !tags.includes(s));
-    if (items.length) onChange([...tags, ...items]);
-    setInput("");
-  };
-
-  const removeTag = (tag: string) => onChange(tags.filter((t) => t !== tag));
-
-  return (
-    <div
-      className="min-h-[42px] w-full rounded-lg border bg-white px-3 py-2 flex flex-wrap gap-1.5 focus-within:ring-2 transition-all"
-      style={{ "--ring-color": primary } as React.CSSProperties}
-    >
-      {tags.map((tag) => (
-        <span
-          key={tag}
-          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
-          style={{ backgroundColor: primary }}
-        >
-          {tag}
-          <button
-            type="button"
-            onClick={() => removeTag(tag)}
-            className="ml-0.5 opacity-70 hover:opacity-100 leading-none"
-          >
-            ×
-          </button>
-        </span>
-      ))}
-      <input
-        type="text"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === ",") {
-            e.preventDefault();
-            addTag(input);
-          }
-          if (e.key === "Backspace" && !input && tags.length) {
-            onChange(tags.slice(0, -1));
-          }
-        }}
-        onBlur={() => input.trim() && addTag(input)}
-        placeholder={tags.length === 0 ? placeholder : "Add more…"}
-        className="flex-1 min-w-[120px] text-sm outline-none bg-transparent placeholder:text-slate-400"
-      />
-    </div>
-  );
-}
-
-// ─── Main Form ────────────────────────────────────────────────────────────────
-
-export function WidgetForm({
-  tenant,
-  allowedSports,
-}: {
+type WidgetFormProps = {
   tenant: Tenant;
   allowedSports: string[];
-}) {
+  leagues: LeagueItem[];
+};
+
+export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) {
   const primary = tenant.primary_color || "#6366f1";
 
-  const visibleSports = SPORT_CONFIGS.filter((s) => allowedSports.includes(s.id));
-
-  const [loading, setLoading]   = useState(false);
-  const [message, setMessage]   = useState<{ text: string; type: "success" | "error" } | null>(null);
-  const [email, setEmail]       = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [emailError, setEmailError]     = useState("");
+  const [emailError, setEmailError] = useState("");
   const [whatsappError, setWhatsappError] = useState("");
 
-  // sport → checked
-  const [checkedSports, setCheckedSports] = useState<Record<string, boolean>>({});
-  // sport → tags array
-  const [sportTags, setSportTags] = useState<Record<string, string[]>>({});
+  // Step 1: Leagues state
+  const [selectedLeagues, setSelectedLeagues] = useState<number[]>([]);
 
-  const toggleSport = (id: string) => {
-    setCheckedSports((prev) => {
-      const next = { ...prev, [id]: !prev[id] };
-      if (!next[id]) setSportTags((t) => ({ ...t, [id]: [] }));
-      return next;
-    });
-  };
+  // Step 2: Teams state (loaded dynamically based on selected leagues)
+  const [availableTeams, setAvailableTeams] = useState<string[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [teamSearch, setTeamSearch] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // Fetch unique teams when selected leagues change
+  useEffect(() => {
+    if (selectedLeagues.length === 0) {
+      setAvailableTeams([]);
+      setSelectedTeams([]);
+      return;
+    }
+
+    const loadTeams = async () => {
+      setLoadingTeams(true);
+      try {
+        const teams = await getTeamsForLeagues(selectedLeagues);
+        setAvailableTeams(teams);
+        // Deselect any teams that are no longer available
+        setSelectedTeams((prev) => prev.filter((t) => teams.includes(t)));
+      } catch (err) {
+        console.error("Failed to load teams:", err);
+      } finally {
+        setLoadingTeams(false);
+      }
+    };
+
+    loadTeams();
+  }, [selectedLeagues]);
 
   const validateEmail = (v: string) => {
     if (!v) return "Email is required.";
@@ -166,6 +82,24 @@ export function WidgetForm({
     return "";
   };
 
+  const toggleLeague = (id: number) => {
+    setSelectedLeagues((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleAddTeam = (team: string) => {
+    if (!selectedTeams.includes(team)) {
+      setSelectedTeams([...selectedTeams, team]);
+    }
+    setTeamSearch("");
+    setIsDropdownOpen(false);
+  };
+
+  const handleRemoveTeam = (team: string) => {
+    setSelectedTeams(selectedTeams.filter((t) => t !== team));
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -175,21 +109,27 @@ export function WidgetForm({
     setWhatsappError(wErr);
     if (eErr || wErr) return;
 
+    if (selectedLeagues.length === 0) {
+      setMessage({ text: "Please select at least one league to follow.", type: "error" });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
 
-    const selectedSports = visibleSports
-      .filter((s) => checkedSports[s.id])
-      .map((s) => s.id);
-
-    // Collect all tags across all checked sports
-    const allTeams = selectedSports.flatMap((id) => sportTags[id] || []);
+    // Derive sport categories from selected leagues
+    const selectedSportsSet = new Set<string>();
+    selectedLeagues.forEach((lId) => {
+      const match = leagues.find((l) => l.id === lId);
+      if (match) selectedSportsSet.add(match.sport_category);
+    });
+    const selectedSports = Array.from(selectedSportsSet);
 
     const fd = new FormData();
     fd.append("email", email);
     fd.append("whatsapp_number", whatsapp);
-    selectedSports.forEach((s) => fd.append("favorite_sports", s));
-    fd.append("favorite_teams", allTeams.join(","));
+    selectedSports.forEach((sport) => fd.append("favorite_sports", sport));
+    fd.append("favorite_teams", selectedTeams.join(","));
 
     const result = await subscribeToTenant(tenant.id, fd);
 
@@ -198,23 +138,29 @@ export function WidgetForm({
       setMessage({ text: "You're subscribed! We'll notify you before matches. 🎉", type: "success" });
       setEmail("");
       setWhatsapp("");
-      setCheckedSports({});
-      setSportTags({});
+      setSelectedLeagues([]);
+      setSelectedTeams([]);
     } else {
       setMessage({ text: result.error || "An error occurred.", type: "error" });
     }
   };
 
+  const filteredTeams = availableTeams.filter(
+    (t) =>
+      t.toLowerCase().includes(teamSearch.toLowerCase()) &&
+      !selectedTeams.includes(t)
+  );
+
   return (
     <div className="w-full max-w-md mx-auto">
-      {/* Card */}
+      {/* Card Wrapper */}
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-        {/* Accent bar */}
+        {/* Top Accent bar */}
         <div className="h-1.5 w-full" style={{ backgroundColor: primary }} />
 
         <div className="p-7">
           {/* Header */}
-          <div className="flex items-center gap-3.5 mb-7">
+          <div className="flex items-center gap-3.5 mb-6">
             <div
               className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-lg flex-shrink-0 shadow-sm"
               style={{ backgroundColor: primary }}
@@ -223,14 +169,14 @@ export function WidgetForm({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 leading-tight">{tenant.name}</h2>
-              <p className="text-sm text-slate-500">Get match reminders via WhatsApp & Email</p>
+              <p className="text-xs text-slate-500">Get match reminders via WhatsApp & Email</p>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            {/* Email */}
+            {/* Email Field */}
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700" htmlFor="email">
+              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider" htmlFor="email">
                 Email Address <span className="text-red-500">*</span>
               </label>
               <input
@@ -244,16 +190,16 @@ export function WidgetForm({
                   "w-full h-10 rounded-lg border px-3 text-sm outline-none transition-all bg-slate-50",
                   emailError
                     ? "border-red-400 focus:ring-2 focus:ring-red-200"
-                    : "border-slate-200 focus:ring-2",
+                    : "border-slate-200 focus:ring-2 focus:ring-slate-100",
                 ].join(" ")}
-                style={!emailError ? { "--tw-ring-color": primary + "55" } as React.CSSProperties : {}}
+                style={!emailError ? { "--tw-ring-color": primary + "33" } as React.CSSProperties : {}}
               />
               {emailError && <p className="text-xs text-red-500">{emailError}</p>}
             </div>
 
-            {/* WhatsApp */}
+            {/* WhatsApp Field */}
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700" htmlFor="whatsapp">
+              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider" htmlFor="whatsapp">
                 WhatsApp Number <span className="text-red-500">*</span>
               </label>
               <input
@@ -267,85 +213,139 @@ export function WidgetForm({
                   "w-full h-10 rounded-lg border px-3 text-sm outline-none transition-all bg-slate-50",
                   whatsappError
                     ? "border-red-400 focus:ring-2 focus:ring-red-200"
-                    : "border-slate-200 focus:ring-2",
+                    : "border-slate-200 focus:ring-2 focus:ring-slate-100",
                 ].join(" ")}
-                style={!whatsappError ? { "--tw-ring-color": primary + "55" } as React.CSSProperties : {}}
+                style={!whatsappError ? { "--tw-ring-color": primary + "33" } as React.CSSProperties : {}}
               />
               {whatsappError && <p className="text-xs text-red-500">{whatsappError}</p>}
             </div>
 
-            {/* Sports + conditional sub-fields */}
-            {visibleSports.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm font-semibold text-slate-700">
-                  Favorite Sports{" "}
-                  <span className="font-normal text-slate-400 text-xs">(select all that apply)</span>
-                </p>
-
-                <div className="space-y-2">
-                  {visibleSports.map((sport) => {
-                    const isChecked = !!checkedSports[sport.id];
+            {/* League Selector (Step 1) */}
+            <div className="space-y-2.5">
+              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Select Leagues to Follow <span className="text-red-500">*</span>
+              </label>
+              <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 space-y-1.5 scrollbar-thin">
+                {leagues.length > 0 ? (
+                  leagues.map((league) => {
+                    const isChecked = selectedLeagues.includes(league.id);
                     return (
-                      <div key={sport.id} className="rounded-xl border border-slate-200 overflow-hidden transition-all duration-200">
-                        {/* Sport toggle row */}
+                      <button
+                        type="button"
+                        key={league.id}
+                        onClick={() => toggleLeague(league.id)}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-left text-sm hover:bg-slate-100 transition-colors"
+                      >
+                        <div
+                          className="w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all"
+                          style={{
+                            backgroundColor: isChecked ? primary : "transparent",
+                            borderColor: isChecked ? primary : "#cbd5e1",
+                          }}
+                        >
+                          {isChecked && (
+                            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={3}>
+                              <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </div>
+                        {league.logo_url && (
+                          <img
+                            src={league.logo_url}
+                            alt=""
+                            className="w-4 h-4 rounded-full object-contain bg-white"
+                          />
+                        )}
+                        <span className="text-slate-700 font-medium truncate">{league.name}</span>
+                        <span className="text-[10px] text-slate-400 uppercase ml-auto font-semibold">{league.sport_category}</span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-400 p-2 text-center">No leagues available for your filters.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Team Selector (Step 2) */}
+            {selectedLeagues.length > 0 && (
+              <div className="space-y-2.5 transition-all duration-300">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                  <span>Favorite Teams to Follow</span>
+                  {loadingTeams && (
+                    <span className="h-3 w-3 animate-spin rounded-full border border-slate-300 border-t-slate-600" />
+                  )}
+                </label>
+
+                {/* Team Tag Container */}
+                {selectedTeams.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2 bg-slate-50 p-2 border border-slate-100 rounded-lg">
+                    {selectedTeams.map((team) => (
+                      <span
+                        key={team}
+                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold text-slate-700 bg-slate-200/70 border border-slate-300/50"
+                      >
+                        {team}
                         <button
                           type="button"
-                          onClick={() => toggleSport(sport.id)}
-                          className={[
-                            "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
-                            isChecked ? "bg-slate-50" : "bg-white hover:bg-slate-50/70",
-                          ].join(" ")}
+                          onClick={() => handleRemoveTeam(team)}
+                          className="hover:text-red-500 font-bold"
                         >
-                          {/* Custom checkbox */}
-                          <div
-                            className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all"
-                            style={{
-                              backgroundColor: isChecked ? primary : "transparent",
-                              borderColor: isChecked ? primary : "#cbd5e1",
-                            }}
-                          >
-                            {isChecked && (
-                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
-                                <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className="text-lg">{sport.emoji}</span>
-                          <span className="text-sm font-medium text-slate-800">{sport.label}</span>
+                          ×
                         </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
 
-                        {/* Conditional sub-field */}
-                        <div
-                          className={[
-                            "overflow-hidden transition-all duration-300 ease-in-out",
-                            isChecked ? "max-h-40 opacity-100" : "max-h-0 opacity-0",
-                          ].join(" ")}
-                        >
-                          <div className="px-4 pb-4 pt-1 bg-slate-50 border-t border-slate-100">
-                            <p className="text-xs font-semibold text-slate-500 mb-2">
-                              {sport.subLabel}{" "}
-                              <span className="font-normal text-slate-400">(press Enter or comma to add)</span>
-                            </p>
-                            <TagInput
-                              tags={sportTags[sport.id] || []}
-                              onChange={(tags) => setSportTags((prev) => ({ ...prev, [sport.id]: tags }))}
-                              placeholder={sport.placeholder}
-                              primary={primary}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                {/* Auto-complete Search Input */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder={loadingTeams ? "Loading teams..." : "Type or search teams…"}
+                    value={teamSearch}
+                    disabled={loadingTeams || availableTeams.length === 0}
+                    onChange={(e) => {
+                      setTeamSearch(e.target.value);
+                      setIsDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsDropdownOpen(true)}
+                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 placeholder:text-slate-400 disabled:opacity-50"
+                  />
+                  
+                  {isDropdownOpen && teamSearch.trim() && (
+                    <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1 scrollbar-thin">
+                      {filteredTeams.length > 0 ? (
+                        filteredTeams.map((team) => (
+                          <button
+                            type="button"
+                            key={team}
+                            onClick={() => handleAddTeam(team)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 text-slate-700 font-medium"
+                          >
+                            {team}
+                          </button>
+                        ))
+                      ) : (
+                        <p className="text-xs text-slate-400 px-3 py-2 text-center">No matching teams found.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {availableTeams.length === 0 && !loadingTeams && (
+                  <p className="text-[11px] text-slate-400">
+                    No active teams/competitors cached for the selected leagues.
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Message */}
+            {/* Error or Success Message */}
             {message && (
               <div
                 className={[
-                  "p-3.5 rounded-xl text-sm font-medium border",
+                  "p-3 rounded-xl text-xs font-semibold border",
                   message.type === "success"
                     ? "bg-green-50 text-green-700 border-green-200"
                     : "bg-red-50 text-red-700 border-red-200",
@@ -355,19 +355,16 @@ export function WidgetForm({
               </div>
             )}
 
-            {/* Submit */}
+            {/* Submit CTA Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl text-sm font-bold text-white shadow-md transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+              className="w-full py-2.5 rounded-xl text-sm font-bold text-white shadow-md transition-all duration-150 hover:opacity-90 active:scale-[0.99] disabled:opacity-60"
               style={{ backgroundColor: primary }}
             >
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
+                <span className="flex items-center justify-center gap-1.5">
+                  <span className="animate-spin h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white" />
                   Subscribing…
                 </span>
               ) : (
@@ -378,8 +375,8 @@ export function WidgetForm({
         </div>
       </div>
 
-      <p className="text-center text-xs text-slate-400 mt-4">
-        You can unsubscribe at any time. No spam.
+      <p className="text-center text-[10px] text-slate-400 mt-3.5">
+        Powered by Sports Reminder Module. You can unsubscribe at any time.
       </p>
     </div>
   );
