@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { headers } from "next/headers";
 
 // In a real scenario, protect this with a secret key
 export async function GET(req: NextRequest) {
+  await headers(); // Force dynamic route execution
   // const authHeader = req.headers.get('authorization');
   // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
   //   return new Response('Unauthorized', { status: 401 });

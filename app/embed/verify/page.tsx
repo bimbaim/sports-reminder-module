@@ -1,14 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import { WidgetForm } from "../[tenant-slug]/widget-form";
+import { Suspense } from "react";
 
-export const dynamic = "force-dynamic";
-
-export default async function VerifyEmbedPage({
-  searchParams,
-}: {
+type PageProps = {
   searchParams: Promise<{ token?: string; sports?: string }>;
-}) {
+};
+
+async function VerifyContent({ searchParams }: { searchParams: Promise<{ token?: string; sports?: string }> }) {
   const { token, sports } = await searchParams;
 
   if (!token) return notFound();
@@ -41,9 +40,9 @@ export default async function VerifyEmbedPage({
   const allowedSports: string[] =
     sports && sports.trim()
       ? sports
-          .split(",")
-          .map((s) => s.trim().toLowerCase())
-          .filter((s) => ALL.includes(s))
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => ALL.includes(s))
       : ALL;
 
   // Fetch leagues matching the allowed sports categories
@@ -61,5 +60,22 @@ export default async function VerifyEmbedPage({
         leagues={leagues || []}
       />
     </div>
+  );
+}
+
+export default function VerifyEmbedPage({ searchParams }: PageProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+            <p className="text-xs font-medium text-slate-400">Loading widget...</p>
+          </div>
+        </div>
+      }
+    >
+      <VerifyContent searchParams={searchParams} />
+    </Suspense>
   );
 }
