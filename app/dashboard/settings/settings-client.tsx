@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   toggleSportActive,
@@ -78,11 +78,23 @@ function EditCredentialsDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [apiUrl, setApiUrl] = useState(setting.api_url);
+  const [apiKey, setApiKey] = useState(setting.api_key);
+
+  // Update form state when dialog opens or setting changes
+  useEffect(() => {
+    if (open) {
+      setApiUrl(setting.api_url);
+      setApiKey(setting.api_key);
+    }
+  }, [open, setting]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
-    const fd = new FormData(e.currentTarget);
+    const fd = new FormData();
+    fd.append("api_url", apiUrl);
+    fd.append("api_key", apiKey);
     const result = await updateSportCredentials(setting.id, fd);
     setSaving(false);
 
@@ -90,8 +102,8 @@ function EditCredentialsDialog({
       toast.success("Settings updated successfully.");
       onUpdated({
         ...setting,
-        api_base_url: fd.get("api_base_url")?.toString() || "",
-        api_key: fd.get("api_key")?.toString() || "",
+        api_url: apiUrl,
+        api_key: apiKey,
       });
       setOpen(false);
     } else {
@@ -127,15 +139,16 @@ function EditCredentialsDialog({
 
           {/* API Base URL */}
           <div className="space-y-2">
-            <Label htmlFor="api_base_url" className="text-sm font-medium">
+            <Label htmlFor="api_url" className="text-sm font-medium">
               <Globe className="h-3.5 w-3.5 inline mr-1.5 text-muted-foreground" />
               API Base URL
             </Label>
             <Input
-              id="api_base_url"
-              name="api_base_url"
+              id="api_url"
+              name="api_url"
               type="url"
-              defaultValue={setting.api_base_url}
+              value={apiUrl}
+              onChange={(e) => setApiUrl(e.target.value)}
               placeholder="https://v3.football.api-sports.io"
               className="font-mono text-sm"
             />
@@ -151,7 +164,8 @@ function EditCredentialsDialog({
               id="api_key"
               name="api_key"
               type="password"
-              defaultValue={setting.api_key}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
               placeholder="Enter your API key"
               className="font-mono text-sm"
             />
@@ -186,7 +200,7 @@ function SportCard({
   const [local, setLocal] = useState(setting);
 
   const emoji = SPORT_EMOJI[local.sport_key] || "🏟️";
-  const hasCredentials = !!local.api_base_url && !!local.api_key;
+  const hasCredentials = !!local.api_url && !!local.api_key;
 
   const handleToggle = async () => {
     const prev = local.is_active;
@@ -269,7 +283,7 @@ function SportCard({
             API Host
           </div>
           <p className="text-sm font-mono text-foreground truncate">
-            {local.api_base_url || (
+            {local.api_url || (
               <span className="text-muted-foreground italic">Not configured</span>
             )}
           </p>

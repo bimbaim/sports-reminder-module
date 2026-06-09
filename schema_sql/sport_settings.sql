@@ -17,7 +17,7 @@ CREATE POLICY "Allow backend service_role full access" ON sport_settings FOR ALL
 
 -- Seed default sport rows
 INSERT INTO sport_settings (sport_key, sport_name, api_base_url) VALUES
-  ('football', 'Football (Soccer)', 'https://v3.football.api-sports.io'),
+  ('football', 'Football (Soccer)', 'https://free-api-live-football-data.p.rapidapi.com'),
   ('ufc',      'UFC / MMA',         'https://v1.mma.api-sports.io'),
   ('nba',      'NBA Basketball',    'https://v2.nba.api-sports.io'),
   ('f1',       'Formula 1',         'https://v1.formula-1.api-sports.io')
