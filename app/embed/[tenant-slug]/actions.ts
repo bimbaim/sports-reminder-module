@@ -22,7 +22,7 @@ export async function getTeamsForLeagues(leagueIds: number[]) {
     if (m.competitor_b && m.competitor_b.trim()) teams.add(m.competitor_b.trim());
   });
 
-  return Array.from(teams).sort();
+  return Array.from(teams).sort((a, b) => a.localeCompare(b));
 }
 
 export async function subscribeToTenant(tenantId: string, formData: FormData) {

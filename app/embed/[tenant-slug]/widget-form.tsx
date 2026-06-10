@@ -47,6 +47,9 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
 
   // Fetch unique teams when selected leagues change
   useEffect(() => {
+    setTeamSearch("");
+    setIsDropdownOpen(false);
+
     if (selectedLeagues.length === 0) {
       setAvailableTeams([]);
       setSelectedTeams([]);
@@ -268,78 +271,82 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
             </div>
 
             {/* Team Selector (Step 2) */}
-            {selectedLeagues.length > 0 && (
-              <div className="space-y-2.5 transition-all duration-300">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
-                  <span>Favorite Teams to Follow</span>
-                  {loadingTeams && (
-                    <span className="h-3 w-3 animate-spin rounded-full border border-slate-300 border-t-slate-600" />
-                  )}
-                </label>
+            <div className="space-y-2.5 transition-all duration-300">
+              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                <span>Favorite Teams to Follow</span>
+                {loadingTeams && (
+                  <span className="h-3 w-3 animate-spin rounded-full border border-slate-300 border-t-slate-600" />
+                )}
+              </label>
 
-                {/* Team Tag Container */}
-                {selectedTeams.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-2 bg-slate-50 p-2 border border-slate-100 rounded-lg">
-                    {selectedTeams.map((team) => (
-                      <span
-                        key={team}
-                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold text-slate-700 bg-slate-200/70 border border-slate-300/50"
+              {/* Team Tag Container */}
+              {selectedTeams.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2 bg-slate-50 p-2 border border-slate-100 rounded-lg">
+                  {selectedTeams.map((team) => (
+                    <span
+                      key={team}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold text-slate-700 bg-slate-200/70 border border-slate-300/50"
+                    >
+                      {team}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTeam(team)}
+                        className="hover:text-red-500 font-bold"
                       >
-                        {team}
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Auto-complete Search Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={
+                    selectedLeagues.length === 0
+                      ? "Select leagues first..."
+                      : loadingTeams
+                      ? "Loading teams..."
+                      : "Type or search teams…"
+                  }
+                  value={teamSearch}
+                  disabled={selectedLeagues.length === 0 || loadingTeams || availableTeams.length === 0}
+                  onChange={(e) => {
+                    setTeamSearch(e.target.value);
+                    setIsDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 placeholder:text-slate-400 disabled:opacity-50"
+                />
+                
+                {isDropdownOpen && teamSearch.trim() && selectedLeagues.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1 scrollbar-thin">
+                    {filteredTeams.length > 0 ? (
+                      filteredTeams.map((team) => (
                         <button
                           type="button"
-                          onClick={() => handleRemoveTeam(team)}
-                          className="hover:text-red-500 font-bold"
+                          key={team}
+                          onClick={() => handleAddTeam(team)}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 text-slate-700 font-medium"
                         >
-                          ×
+                          {team}
                         </button>
-                      </span>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-xs text-slate-400 px-3 py-2 text-center">No matching teams found.</p>
+                    )}
                   </div>
                 )}
-
-                {/* Auto-complete Search Input */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder={loadingTeams ? "Loading teams..." : "Type or search teams…"}
-                    value={teamSearch}
-                    disabled={loadingTeams || availableTeams.length === 0}
-                    onChange={(e) => {
-                      setTeamSearch(e.target.value);
-                      setIsDropdownOpen(true);
-                    }}
-                    onFocus={() => setIsDropdownOpen(true)}
-                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 placeholder:text-slate-400 disabled:opacity-50"
-                  />
-                  
-                  {isDropdownOpen && teamSearch.trim() && (
-                    <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1 scrollbar-thin">
-                      {filteredTeams.length > 0 ? (
-                        filteredTeams.map((team) => (
-                          <button
-                            type="button"
-                            key={team}
-                            onClick={() => handleAddTeam(team)}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 text-slate-700 font-medium"
-                          >
-                            {team}
-                          </button>
-                        ))
-                      ) : (
-                        <p className="text-xs text-slate-400 px-3 py-2 text-center">No matching teams found.</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {availableTeams.length === 0 && !loadingTeams && (
-                  <p className="text-[11px] text-slate-400">
-                    No active teams/competitors cached for the selected leagues.
-                  </p>
-                )}
               </div>
-            )}
+
+              {selectedLeagues.length > 0 && availableTeams.length === 0 && !loadingTeams && (
+                <p className="text-[11px] text-slate-400">
+                  No active teams/competitors cached for the selected leagues.
+                </p>
+              )}
+            </div>
 
             {/* Error or Success Message */}
             {message && (

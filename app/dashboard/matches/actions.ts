@@ -69,6 +69,121 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       headers["x-apisports-key"] = api_key;
     }
 
+    if (targetKey === "football") {
+      console.log("=== EXECUTING DEDICATED FOOTBALL SYNC ===");
+      //Testing phase: Hardcode league IDs
+      const footballLeagues = [47, 77];
+
+      const fetchLeagueMatches = async (leagueId: number) => {
+        const fixturesUrl = `${api_url}/football-get-all-matches-by-league?leagueid=${leagueId}`;
+        const res = await fetch(fixturesUrl, { method: "GET", headers });
+        if (!res.ok) {
+          throw new Error(`HTTP error ${res.status} when fetching matches for league ${leagueId}`);
+        }
+        const json = await res.json();
+        return {
+          leagueId,
+          matches: json.response?.matches || []
+        };
+      };
+
+      const results = await Promise.all(footballLeagues.map(fetchLeagueMatches));
+
+      // Define "tomorrow" start date in local time zone
+      const today = new Date();
+      const startOfTomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+      const allMatches: any[] = [];
+      results.forEach(({ leagueId, matches }) => {
+        matches.forEach((item: any) => {
+          allMatches.push({ ...item, leagueId });
+        });
+      });
+
+      const totalMatchesReceived = allMatches.length;
+
+      // Filter: kickoff_time >= tomorrow
+      const filteredMatches = allMatches.filter((item: any) => {
+        const matchTime = new Date(item.status?.utcTime);
+        return matchTime >= startOfTomorrow;
+      });
+
+      let totalMatchesSynced = 0;
+      let totalMatchesSkipped = totalMatchesReceived;
+
+      if (filteredMatches.length > 0) {
+        // Deduplicate local items by ID
+        const uniqueFilteredMatchesMap = new Map();
+        filteredMatches.forEach((m) => {
+          uniqueFilteredMatchesMap.set(String(m.id), m);
+        });
+        const uniqueFilteredMatches = Array.from(uniqueFilteredMatchesMap.values());
+
+        const matchIds = uniqueFilteredMatches.map((m: any) => String(m.id));
+
+        // Check for duplicates in DB
+        const { data: existingMatches, error: existError } = await supabase
+          .from("matches")
+          .select("id")
+          .in("id", matchIds);
+
+        if (existError) {
+          console.error("Error checking existing matches in DB:", existError);
+        }
+
+        const existingIds = new Set(existingMatches?.map((m: any) => String(m.id)) || []);
+
+        const matchesToInsert = uniqueFilteredMatches.filter((m: any) => !existingIds.has(String(m.id)));
+        totalMatchesSkipped = totalMatchesReceived - matchesToInsert.length;
+
+        if (matchesToInsert.length > 0) {
+          const mappedMatches = matchesToInsert.map((item: any) => {
+            let matchStatus = "scheduled";
+            if (item.status?.finished) {
+              matchStatus = "finished";
+            } else if (item.status?.started) {
+              matchStatus = "live";
+            }
+
+            return {
+              id: String(item.id),
+              league_id: item.leagueId,
+              competitor_a: item.home?.name || null,
+              competitor_b: item.away?.name || null,
+              event_title: item.tournament?.stage || null,
+              kickoff_time: item.status?.utcTime,
+              status: matchStatus,
+            };
+          });
+
+          const { error: insertError } = await supabase
+            .from("matches")
+            .insert(mappedMatches);
+
+          if (insertError) {
+            console.error("Error inserting matches:", insertError);
+            return { success: false, error: "Gagal menyimpan jadwal pertandingan baru ke database." };
+          }
+          totalMatchesSynced = mappedMatches.length;
+        }
+      } else {
+        totalMatchesSkipped = totalMatchesReceived;
+      }
+
+      // Tandai waktu sinkronisasi sukses
+      await supabase
+        .from("sport_settings")
+        .update({ last_synced_at: new Date().toISOString() })
+        .eq("id", sportId);
+
+      revalidatePath("/dashboard/matches");
+
+      return {
+        success: true,
+        message: `Sync complete! Received: ${totalMatchesReceived} matches. Inserted: ${totalMatchesSynced} matches. Skipped: ${totalMatchesSkipped} matches (including duplicate & past/today fixtures).`,
+      };
+    }
+
     // Penentuan endpoint liga secara akurat
     let leaguesUrl = `${api_url}/leagues`;
     const isFreeLiveFootballApi = api_url.includes("free-api-live-football-data") || targetKey === "football";
