@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { BellRing, Trophy, Loader2 } from "lucide-react";
 
 export function LoginForm({
   className,
@@ -38,7 +39,6 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
       router.push("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
@@ -48,34 +48,53 @@ export function LoginForm({
   };
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account
+    <div className={cn("flex flex-col gap-6 w-full", className)} {...props}>
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 text-primary shadow-inner relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-350" />
+          <Trophy className="w-6 h-6 animate-pulse" />
+          <BellRing className="w-4 h-4 absolute top-1.5 right-1.5 text-primary/80" />
+        </div>
+        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-foreground via-foreground/90 to-foreground/75 bg-clip-text text-transparent mt-2">
+          Sports Reminder
+        </h1>
+      </div>
+
+      <Card className="border-border/50 shadow-xl backdrop-blur-sm bg-card/95">
+        <CardHeader className="space-y-1.5 pb-4">
+          <CardTitle className="text-2xl font-bold tracking-tight text-center">
+            Welcome Back
+          </CardTitle>
+          <CardDescription className="text-center text-muted-foreground text-sm">
+            Sign in to manage your Sports Reminder widgets.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin}>
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+            <div className="flex flex-col gap-5">
+              <div className="grid gap-1.5">
+                <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Email Address
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="name@example.com"
                   required
+                  disabled={isLoading}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="h-10 bg-background/50 border-border/80 focus-visible:ring-primary"
                 />
               </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
+              <div className="grid gap-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Password
+                  </Label>
                   <Link
                     href="/auth/forgot-password"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                    className="text-xs font-medium text-primary hover:underline underline-offset-4"
                   >
                     Forgot your password?
                   </Link>
@@ -84,22 +103,35 @@ export function LoginForm({
                   id="password"
                   type="password"
                   required
+                  disabled={isLoading}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="h-10 bg-background/50 border-border/80 focus-visible:ring-primary"
                 />
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
+              {error && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs font-medium text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
+                  {error}
+                </div>
+              )}
+              <Button type="submit" className="w-full h-10 font-medium transition-all" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
               </Button>
             </div>
-            <div className="mt-4 text-center text-sm">
+            <div className="mt-6 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link
                 href="/auth/sign-up"
-                className="underline underline-offset-4"
+                className="font-medium text-primary hover:underline underline-offset-4"
               >
-                Sign up
+                Create an account
               </Link>
             </div>
           </form>
