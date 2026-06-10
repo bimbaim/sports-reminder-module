@@ -89,9 +89,10 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
 
       const results = await Promise.all(footballLeagues.map(fetchLeagueMatches));
 
-      // Define "tomorrow" start date in local time zone
+      // Define date range: Tomorrow (H+1) 00:00:00 to 7 days from today (H+7) 23:59:59
       const today = new Date();
       const startOfTomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+      const endOf7Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7, 23, 59, 59, 999);
 
       const allMatches: any[] = [];
       results.forEach(({ leagueId, matches }) => {
@@ -102,10 +103,10 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
 
       const totalMatchesReceived = allMatches.length;
 
-      // Filter: kickoff_time >= tomorrow
+      // Filter: startOfTomorrow <= kickoff_time <= endOf7Days
       const filteredMatches = allMatches.filter((item: any) => {
         const matchTime = new Date(item.status?.utcTime);
-        return matchTime >= startOfTomorrow;
+        return matchTime >= startOfTomorrow && matchTime <= endOf7Days;
       });
 
       let totalMatchesSynced = 0;
