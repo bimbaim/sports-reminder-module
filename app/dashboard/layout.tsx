@@ -1,21 +1,21 @@
-import { AppSidebar } from "@/components/dashboard/app-sidebar";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { AppSidebar } from "@/components/dashboard/app-sidebar"; // Keep this import if child components directly use `createClient()`
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"; // Keep this import if child components directly use `createClient()`
+import { Menu } from "lucide-react"; // Keep this import if child components directly use `createClient()`
+import { createClient } from "@/lib/supabase/server"; // Keep this import if child components directly use `createClient()`
+import { Button } from "@/components/ui/button"; // Keep this import if child components directly use `createClient()`
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-
-  if (error || !user) {
-    redirect("/");
-  }
+  // Authentication and redirection for the /dashboard route are handled by middleware.ts.
+  // This layout should only be reached by authenticated users.
+  // The blocking `supabase.auth.getUser()` call and redundant redirect logic have been removed
+  // to prevent the "Blocking Route" error and improve initial page load performance.
+  // If user-specific data is required for display within the layout or its children,
+  // consider fetching it in a dedicated Server Component wrapped in <Suspense>,
+  // or in a Client Component, to avoid blocking the entire route.
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
