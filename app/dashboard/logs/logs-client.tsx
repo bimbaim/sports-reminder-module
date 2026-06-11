@@ -104,7 +104,7 @@ export function LogsClient({ logs }: { logs: any[] }) {
                       {log.channel}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {match?.home_team} vs {match?.away_team}
+                      {match?.competitor_a} vs {match?.competitor_b}
                     </TableCell>
                     <TableCell className="text-right">
                       {getStatusBadge(log.status)}

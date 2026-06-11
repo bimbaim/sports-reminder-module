@@ -58,6 +58,7 @@ export async function updateSession(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith("/auth") &&
     !request.nextUrl.pathname.startsWith("/embed") &&
+    !request.nextUrl.pathname.startsWith("/api/cron") &&
     !request.nextUrl.pathname.includes(".")
   ) {
     // no user, potentially respond by redirecting the user to the login page (root page)

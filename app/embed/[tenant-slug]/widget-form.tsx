@@ -34,6 +34,8 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
   const [whatsapp, setWhatsapp] = useState("");
   const [emailError, setEmailError] = useState("");
   const [whatsappError, setWhatsappError] = useState("");
+  const [isConsented, setIsConsented] = useState(false);
+  const [consentError, setConsentError] = useState("");
 
   // Step 1: Leagues state
   const [selectedLeagues, setSelectedLeagues] = useState<number[]>([]);
@@ -110,7 +112,18 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
     const wErr = validateWhatsapp(whatsapp);
     setEmailError(eErr);
     setWhatsappError(wErr);
-    if (eErr || wErr) return;
+
+    let hasError = false;
+    if (eErr || wErr) hasError = true;
+
+    if (!isConsented) {
+      setConsentError("You must agree to receive WhatsApp notifications to subscribe.");
+      hasError = true;
+    } else {
+      setConsentError("");
+    }
+
+    if (hasError) return;
 
     if (selectedLeagues.length === 0) {
       setMessage({ text: "Please select at least one league to follow.", type: "error" });
@@ -131,6 +144,7 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
     const fd = new FormData();
     fd.append("email", email);
     fd.append("whatsapp_number", whatsapp);
+    fd.append("is_consented", isConsented ? "true" : "false");
     selectedSports.forEach((sport) => fd.append("favorite_sports", sport));
     fd.append("favorite_teams", selectedTeams.join(","));
 
@@ -141,6 +155,7 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
       setMessage({ text: "You're subscribed! We'll notify you before matches. 🎉", type: "success" });
       setEmail("");
       setWhatsapp("");
+      setIsConsented(false);
       setSelectedLeagues([]);
       setSelectedTeams([]);
     } else {
@@ -221,6 +236,26 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
                 style={!whatsappError ? { "--tw-ring-color": primary + "33" } as React.CSSProperties : {}}
               />
               {whatsappError && <p className="text-xs text-red-500">{whatsappError}</p>}
+            </div>
+
+            {/* Consent Checkbox */}
+            <div className="space-y-1.5">
+              <label className="flex items-start gap-2.5 cursor-pointer py-1">
+                <input
+                  type="checkbox"
+                  checked={isConsented}
+                  onChange={(e) => {
+                    setIsConsented(e.target.checked);
+                    setConsentError("");
+                  }}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 transition-colors focus:ring-0 focus:ring-offset-0"
+                  style={{ accentColor: primary }}
+                />
+                <span className="text-xs font-medium text-slate-600 leading-tight">
+                  I agree to receive WhatsApp notifications related to upcoming sports matches and reminders.
+                </span>
+              </label>
+              {consentError && <p className="text-xs text-red-500">{consentError}</p>}
             </div>
 
             {/* League Selector (Step 1) */}

@@ -1,45 +1,118 @@
 # Sports Reminder Module
 
-An event-driven automated notification system that allows users to subscribe to sports match reminders via WhatsApp. The system utilizes a decoupled architecture featuring a lightweight client-side embeddable form script, Supabase for data management, Next.js for the backend API layer, and Vercel Cron Jobs as the daily execution scheduler.
+An event-driven automated notification system that allows users to subscribe to sports match reminders via WhatsApp and Email. The system is designed as a multi-tenant platform where pubs (tenants) can embed a style-isolated widget on their websites to capture subscribers. The backend is designed to sync sports fixtures (football, UFC, NBA, F1), match them with subscriber favorites, and process notifications.
 
 ---
 
-## 🚀 Key Features & Development Phases
+## 🚀 Key Features
 
-### Phase 1: Form & Database Integration
-* **Embeddable Form Script:** A lightweight client-side JavaScript script (Vanilla JS/Vite) that can be embedded into any third-party website using an Iframe or Web Component mechanism.
-* **Form Backend API:** A Next.js Serverless endpoint (`/api/embed-form`) equipped with strict CORS configurations to securely ingest payloads from external domains.
-* **Database Infrastructure:** A PostgreSQL instance hosted on Supabase to store target WhatsApp phone numbers and selected Team IDs.
-
-### Phase 2: Cron Job & Automated WhatsApp Notification
-* **Daily Scheduler:** Managed via Vercel Cron Jobs to trigger automation tasks daily at a designated execution window.
-* **Third-Party Sports API Integration:** Real-time fixture verification using API-SPORTS or Football-Data.org matching against unique active Team IDs pulled from the database.
-* **WhatsApp Gateway:** Seamless communication layer via Whapi.cloud or Twilio to dispatch match-day alerts directly to target user devices.
+* **Multi-Tenant Dashboard:** Interface for administrators to create, manage, and configure tenant branding (logo, colors, custom CTA text, theme mode).
+* **Embeddable Ingestion Widget:** Lightweight client-side form loader script (`widget.js`) that injects a style-isolated iframe containing a subscription form (`/embed/[tenant-slug]` or `/embed/verify?token=[public_token]`).
+* **Dynamic Team Ingestion:** Auto-complete search form that dynamically loads teams based on the tenant's selected leagues.
+* **Sports Data Synchronization:** Cron-triggered data sync that fetches tournament leagues and fixtures from third-party sports APIs (RapidAPI / API-Sports) and updates the local cache tables.
+* **Automated Notification Logs:** Real-time log dashboard to monitor WhatsApp/Email transaction dispatches.
 
 ---
 
-## 🛠️ System Workflow Architecture
+## 🛠️ Tech Stack
 
-1.  **User Submit:** The user submits registration data through the embedded form widget -> The payload is targeted to the Next.js API endpoint.
-2.  **Data Persistence:** The Next.js API validates the phone number format and updates the Supabase data layer.
-3.  **Cron Trigger:** The Vercel Cron engine fires the scheduled daily script execution route.
-4.  **Batch & Cache Logic:** The system aggregates unique active Team IDs, calls the external Sports API, caches today's fixture matrix in a temporary table, and bypasses hitting external API limits per user.
-5.  **Dispatch Alerts:** The system references user subscription arrays against cached fixtures and passes valid matches to the WhatsApp Gateway endpoint to deliver the notifications.
+* **Framework:** Next.js 15+ (App Router)
+* **Libraries:** React 19, Radix UI Primitives, Lucide React, Date-fns, Sonner (Toaster)
+* **Styling:** Tailwind CSS v3, CSS variables
+* **Database & Auth:** Supabase (PostgreSQL with Row Level Security policies, `@supabase/ssr` authentication)
+* **Package Manager:** npm
 
 ---
 
-## 📁 Project Directory Reference
+## 🔑 Environment Setup
+
+Create a `.env.local` file in the root directory and define the following variables:
+
+```bash
+# Supabase Configuration
+NEXT_PUBLIC_SPORTS_REMINDER_SUPABASE_URL="https://your-project.supabase.co"
+NEXT_PUBLIC_SPORTS_REMINDER_SUPABASE_ANON_KEY="your-anon-key"
+SPORTS_REMINDER_SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+
+# Database Connection Info
+SPORTS_REMINDER_POSTGRES_HOST="db.your-project.supabase.co"
+SPORTS_REMINDER_POSTGRES_USER="postgres"
+SPORTS_REMINDER_POSTGRES_PASSWORD="your-db-password"
+SPORTS_REMINDER_POSTGRES_DATABASE="postgres"
+SPORTS_REMINDER_POSTGRES_URL="postgres://..."
+
+# Meta WhatsApp Cloud API credentials
+SPORTS_REMINDER_META_WHATSAPP_ACCESS_TOKEN="your-meta-access-token"
+SPORTS_REMINDER_META_PHONE_NUMBER_ID="your-phone-number-id"
+SPORTS_REMINDER_META_BUSINESS_ACCOUNT_ID="your-business-account-id"
+SPORTS_REMINDER_META_WEBHOOK_VERIFY_TOKEN="your-webhook-verify-token"
+SPORTS_REMINDER_META_APP_SECRET="your-meta-app-secret"
+
+# WhatsApp Notification Template
+SPORTS_REMINDER_WHATSAPP_TEMPLATE_NAME="sports_reminder_alert"
+
+# Scheduler / Cron Protection
+CRON_SECRET="your-cron-secret-key"
+```
+
+---
+
+## 💻 Running Locally
+
+1. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Run Dev Server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) to access the landing page/login dashboard.
+
+3. **Verify Database:**
+   Apply the SQL migration scripts located in the [schema_sql](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/schema_sql) folder to set up the schema and seed default data.
+
+---
+
+## 📁 Directory Structure
 
 ```text
 ├── app/
 │   ├── api/
-│   │   ├── embed-form/         # Form submission receiver endpoint (CORS enabled)
 │   │   └── cron/
-│   │       └── send-reminder/  # Daily WhatsApp scheduler cron execution route
-│   ├── components/             # Internal visual layout components (shadcn/ui)
-│   └── layout.js
+│   │       └── sync-matches/   # Mock match sync endpoint (H+1 schedule simulator)
+│   ├── auth/                   # Supabase Auth routes (login, register, reset password)
+│   ├── dashboard/              # Admin panel pages (Overview, Tenants, Matches, Widgets, Logs)
+│   ├── embed/                  # Widget frame targets
+│   │   ├── [tenant-slug]/      # URL slug-based widget frame
+│   │   └── verify/             # Token-based secure widget frame
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── dashboard/              # Sidebar & layout controls
+│   ├── ui/                     # Shared UI components (shadcn/ui-styled)
+│   └── login-form.tsx          # Dashboard login handler
+├── lib/
+│   ├── supabase/               # Client, Server, Admin, and Middleware (proxy) modules
+│   └── utils.ts                # General utilities (Tailwind merges, checks)
 ├── public/
-│   └── embed-script.js         # Client-side JavaScript widget core entry point
-├── vercel.json                 # Vercel Cron execution frequency rules configuration
-├── package.json
-└── README.md
+│   └── widget.js               # Client embeddable loader script
+├── schema_sql/                 # PostgreSQL migrations and seeds
+```
+
+---
+
+## ⚠️ Troubleshooting & Known Issues
+
+1. **Next.js Middleware Bypass:**
+   The middleware logic is implemented in [proxy.ts](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/proxy.ts) instead of `middleware.ts`. In Next.js, the middleware file must be named `middleware.ts` in the root. Rename `proxy.ts` to `middleware.ts` to enable dashboard session protection.
+
+2. **Cron Mismatch Database Error:**
+   The match synchronizer route at [sync-matches/route.ts](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/app/api/cron/sync-matches/route.ts) attempts to insert mock fixtures using old column names (`sport_type`, `team_a`, `team_b`, `match_time`). It must be updated to align with the new schema (`league_id`, `competitor_a`, `competitor_b`, `kickoff_time`).
+
+3. **Notification Logs Crash:**
+   The logging page at [logs/page.tsx](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/app/dashboard/logs/page.tsx) selects `home_team` and `away_team` from the `matches` table. Since the table uses `competitor_a` and `competitor_b`, querying these non-existent columns causes a database exception.
+
+4. **Broken Logout Button:**
+   The logout form in the sidebar attempts to POST to `/auth/sign-out`, but no route handler or action is registered at that path. Users will experience a 404 error.

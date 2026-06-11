@@ -16,8 +16,8 @@ async function LogsData() {
         )
       ),
       matches (
-        home_team,
-        away_team
+        competitor_a,
+        competitor_b
       )
     `)
     .order("created_at", { ascending: false });
