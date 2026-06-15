@@ -233,8 +233,14 @@ function SportCard({
   const handleSyncData = async () => {
     setSyncing(true);
     try {
-      // 1. Sync Leagues (metadata) - Only if not NBA or Rugby (they handle their own league entries)
-      const isStandaloneSport = nameLower.includes("nba") || nameLower.includes("rugby");
+      // 1. Sync Leagues (metadata) - Only for sports that have separate league entities
+      // Standalone sports (NFL, NRL, AFL, NBA, etc.) manage their own league/competition structure
+      const isStandaloneSport = 
+        nameLower.includes("nba") || 
+        nameLower.includes("rugby") || 
+        nameLower.includes("nrl") || 
+        nameLower.includes("afl") || 
+        nameLower.includes("nfl");
       
       if (!isStandaloneSport) {
         const leagueResult = await syncSportData(local.id);
