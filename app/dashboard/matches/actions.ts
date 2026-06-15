@@ -68,11 +68,17 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       "Accept": "application/json",
     };
 
-    const urlObj = new URL(api_url);
-    if (urlObj.hostname.includes("rapidapi.com")) {
-      headers["x-rapidapi-key"] = api_key;
-      headers["x-rapidapi-host"] = urlObj.hostname;
-    } else {
+    const cleanApiUrl = api_url.replace(/\/+$/, "");
+
+    try {
+      const urlObj = new URL(cleanApiUrl);
+      if (urlObj.hostname.includes("rapidapi.com")) {
+        headers["x-rapidapi-key"] = api_key;
+        headers["x-rapidapi-host"] = urlObj.hostname;
+      } else {
+        headers["x-apisports-key"] = api_key;
+      }
+    } catch (e) {
       headers["x-apisports-key"] = api_key;
     }
 
@@ -82,7 +88,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       console.log(`[FootballSync] Target leagues: ${footballLeagues.join(", ")}`);
 
       const fetchLeagueMatches = async (leagueId: number) => {
-        const fixturesUrl = `${api_url}/football-get-all-matches-by-league?leagueid=${leagueId}`;
+        const fixturesUrl = `${cleanApiUrl}/football-get-all-matches-by-league?leagueid=${leagueId}`;
         console.log(`[FootballSync] Dispatching API fetch request to: ${fixturesUrl}`);
         const res = await fetch(fixturesUrl, { method: "GET", headers });
         if (!res.ok) {
@@ -325,7 +331,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
         const dd = String(date.getDate()).padStart(2, '0');
         const dateStr = `${yyyy}${mm}${dd}`;
 
-        const scheduleUrl = `${api_url}/nba-schedule-by-date?date=${dateStr}`;
+        const scheduleUrl = `${cleanApiUrl}/nba-schedule-by-date?date=${dateStr}`;
         console.log(`[NBASync] Fetching for date: ${dateStr} URL: ${scheduleUrl}`);
 
         try {
@@ -473,18 +479,22 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
         const dd = date.getDate();
         
         // URL format: matches/{day}/{month}/{year}
-        const scheduleUrl = `${api_url}/api/rugby/matches/${dd}/${mm}/${yyyy}`;
-        console.log(`[RugbySync] Fetching for date: ${dd}/${mm}/${yyyy} URL: ${scheduleUrl}`);
+        const scheduleUrl = `${cleanApiUrl}/api/rugby/matches/${dd}/${mm}/${yyyy}`;
+        console.log(`[RugbySync] Fetching URL: ${scheduleUrl}`);
 
         try {
-          const res = await fetch(scheduleUrl, { method: "GET", headers });
+          // Add Content-Type to match user's successful Postman test
+          const rugbyHeaders = { ...headers, "Content-Type": "application/json" };
+          const res = await fetch(scheduleUrl, { method: "GET", headers: rugbyHeaders });
+          
           if (res.ok) {
             const json = await res.json();
             const events = json.events || [];
             allEvents.push(...events);
             console.log(`[RugbySync] Received ${events.length} events for ${dd}/${mm}/${yyyy}`);
           } else {
-            console.error(`[RugbySync] API Error ${res.status} for date ${dd}/${mm}/${yyyy}`);
+            const errorText = await res.text();
+            console.error(`[RugbySync] API Error ${res.status} for URL ${scheduleUrl}. Response: ${errorText}`);
           }
         } catch (err) {
           console.error(`[RugbySync] Failed to fetch for ${dd}/${mm}/${yyyy}:`, err);
