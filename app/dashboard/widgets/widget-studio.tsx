@@ -48,6 +48,7 @@ type FormState = {
 type SportOption = {
   id: string;
   label: string;
+  have_leagues: boolean;
 };
 
 const SPORT_EMOJI: Record<string, string> = {
@@ -80,9 +81,16 @@ function WidgetPreview({
   const borderColor = isDark ? "#334155" : "#e2e8f0";
   const inputBg    = isDark ? "#0f172a" : "#f8fafc";
 
+  // Filter based on what's active in the studio
   const visibleSports = availableSports.filter((s) =>
     allowedSports.length === 0 || allowedSports.includes(s.id)
   );
+
+  // Determine if we should show the "Favorite Sports" step in preview
+  const showSportsStep = visibleSports.length > 1;
+
+  // Determine if league selector would show
+  const showLeagueSelector = visibleSports.some(s => s.have_leagues);
 
   return (
     <div
@@ -115,7 +123,7 @@ function WidgetPreview({
           {/* Mock inputs */}
           {[
             { label: "Email Address", placeholder: "you@example.com" },
-            { label: "WhatsApp Number", placeholder: "+1 234 567 8900" },
+            { label: "WhatsApp Number", placeholder: "+62 812 3456 7890" },
           ].map((field) => (
             <div key={field.label} className="space-y-1.5">
               <p className="text-xs font-semibold" style={{ color: mutedColor }}>{field.label}</p>
@@ -128,35 +136,43 @@ function WidgetPreview({
             </div>
           ))}
 
-          {/* Sports checkboxes preview */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold" style={{ color: mutedColor }}>Favorite Sports</p>
-            <div className="space-y-1.5">
-              {visibleSports.map((sport, i) => (
-                <div
-                  key={sport.id}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg border"
-                  style={{ borderColor, backgroundColor: i === 0 ? config.primary_color + "12" : "transparent" }}
-                >
+          {/* Sports Selector Preview (Only if > 1) */}
+          {showSportsStep && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold" style={{ color: mutedColor }}>Favorite Sports</p>
+              <div className="flex flex-wrap gap-1.5">
+                {visibleSports.map((sport, i) => (
                   <div
-                    className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0"
-                    style={{
+                    key={sport.id}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold"
+                    style={{ 
+                      borderColor: i === 0 ? config.primary_color : borderColor, 
                       backgroundColor: i === 0 ? config.primary_color : "transparent",
-                      borderColor: i === 0 ? config.primary_color : borderColor,
+                      color: i === 0 ? "#ffffff" : textColor
                     }}
                   >
-                    {i === 0 && (
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={3}>
-                        <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
+                    <span>{SPORT_EMOJI[sport.id] || "🏆"}</span>
+                    {sport.label}
                   </div>
-                  <span className="text-xs">{SPORT_EMOJI[sport.id] || "🏆"}</span>
-                  <span className="text-xs font-medium" style={{ color: textColor }}>{sport.label}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* League Selector Preview - Only if needed */}
+          {showLeagueSelector && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold" style={{ color: mutedColor }}>Select Leagues to Follow</p>
+              <div className="space-y-1.5 border rounded-lg p-2 max-h-24 overflow-hidden" style={{ borderColor, backgroundColor: inputBg }}>
+                {[1, 2].map((_, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[10px] opacity-60">
+                    <div className="w-3 h-3 rounded border" style={{ borderColor }} />
+                    <div className="h-2 w-20 bg-slate-300 rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* CTA */}
           <button

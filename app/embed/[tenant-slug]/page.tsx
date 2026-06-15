@@ -19,10 +19,10 @@ export default async function EmbedWidgetPage({
   // 1. Fetch active sports from database
   const { data: activeSportsData } = await supabase
     .from("sport_settings")
-    .select("sport_slug")
+    .select("sport_slug, sport_name, have_leagues")
     .eq("is_active", true);
 
-  const ALL_ACTIVE = (activeSportsData || []).map(s => s.sport_slug);
+  const ALL_ACTIVE_SLUGS = (activeSportsData || []).map(s => s.sport_slug);
 
   const { data: tenant } = await supabase
     .from("tenants")
@@ -34,19 +34,22 @@ export default async function EmbedWidgetPage({
   if (!tenant) return notFound();
 
   // Parse allowed sports from query param; fallback = all active sports
-  const allowedSports: string[] =
+  const allowedSportSlugs: string[] =
     sports && sports.trim()
       ? sports
         .split(",")
         .map((s) => s.trim().toLowerCase())
-        .filter((s) => ALL_ACTIVE.includes(s))
-      : ALL_ACTIVE;
+        .filter((s) => ALL_ACTIVE_SLUGS.includes(s))
+      : ALL_ACTIVE_SLUGS;
+
+  // Filter the full sport settings based on allowed slugs
+  const allowedSports = (activeSportsData || []).filter(s => allowedSportSlugs.includes(s.sport_slug));
 
   // Fetch leagues matching the allowed sports categories
   const { data: leagues } = await supabase
     .from("leagues")
     .select("id, name, sport_category, logo_url")
-    .in("sport_category", allowedSports)
+    .in("sport_category", allowedSportSlugs)
     .order("name", { ascending: true });
 
   return (

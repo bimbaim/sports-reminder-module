@@ -34,6 +34,7 @@ async function WidgetsData() {
   const mappedSports = sports.map((s) => ({
     id: s.sport_slug || s.id,
     label: s.sport_name,
+    have_leagues: s.have_leagues,
     realId: s.id // Keep the real UUID for reference if needed
   }));
 

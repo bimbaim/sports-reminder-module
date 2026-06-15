@@ -7,8 +7,8 @@ This roadmap outlines the prioritized phases and tasks required to take the Spor
 ## 🛠️ Phase 1 - Stabilization (Quick Wins)
 *Focus: Resolving critical crashes, fixing route configurations, and securing the dashboard.*
 
-### 1. Activating Route Authentication Middleware
-* **Why it matters:** Currently, admin dashboard settings can be bypassed because the middleware filename is misnamed (`proxy.ts` instead of `middleware.ts`).
+### 1. [DONE] Activating Route Authentication Middleware
+* **Why it matters:** Middleware has been successfully migrated to the `proxy.ts` naming convention for session management.
 * **Dependencies:** None
 * **Estimated Complexity:** Low (5 mins)
 * **Business Impact:** Prevents unauthorized configurations of tenant branding.

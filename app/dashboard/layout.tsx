@@ -9,7 +9,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Authentication and redirection for the /dashboard route are handled by middleware.ts.
+  // Authentication and redirection for the /dashboard route are handled by proxy.ts.
   // This layout should only be reached by authenticated users.
   // The blocking `supabase.auth.getUser()` call and redundant redirect logic have been removed
   // to prevent the "Blocking Route" error and improve initial page load performance.

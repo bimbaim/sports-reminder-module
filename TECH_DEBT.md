@@ -21,7 +21,8 @@
 ### 3. Misnamed Middleware File
 * **ID:** TD-003
 * **File:** [proxy.ts](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/proxy.ts) (root)
-* **Description:** Middleware configuration is named `proxy.ts`, which Next.js ignores. It must be named `middleware.ts`.
+* **Status:** FIXED
+* **Description:** Middleware has been migrated to the proxy naming convention.
 * **Impact:** Dashboard pages are open to unauthenticated access.
 * **Priority:** **CRITICAL**
 * **Effort:** Low (5 mins)

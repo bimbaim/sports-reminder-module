@@ -20,7 +20,7 @@ The **Sports Reminder Module** is a multi-tenant subscription framework. Pubs (t
 1. **Cron Ingest Mismatch:** [sync-matches/route.ts](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/app/api/cron/sync-matches/route.ts) attempts to insert old columns (`sport_type`, `team_a`, `team_b`, `match_time`). The database uses `league_id`, `competitor_a`, `competitor_b`, and `kickoff_time`.
 2. **Logs Page Crash:** [logs/page.tsx](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/app/dashboard/logs/page.tsx) queries `home_team` and `away_team` from `matches`. Change this to `competitor_a` and `competitor_b`.
 3. **Broken Logout:** Form targets `/auth/sign-out` in sidebar but that route does not exist.
-4. **Ignored Middleware:** The routing middleware is named `proxy.ts` instead of `middleware.ts` in the root.
+4. **Resolved Middleware:** The routing middleware is now named `proxy.ts` following the updated convention.
 
 ---
 

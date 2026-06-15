@@ -106,7 +106,7 @@ CRON_SECRET="your-cron-secret-key"
 ## ⚠️ Troubleshooting & Known Issues
 
 1. **Next.js Middleware Bypass:**
-   The middleware logic is implemented in [proxy.ts](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/proxy.ts) instead of `middleware.ts`. In Next.js, the middleware file must be named `middleware.ts` in the root. Rename `proxy.ts` to `middleware.ts` to enable dashboard session protection.
+   The middleware logic is implemented in [proxy.ts](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/proxy.ts) following the latest convention.
 
 2. **Cron Mismatch Database Error:**
    The match synchronizer route at [sync-matches/route.ts](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/app/api/cron/sync-matches/route.ts) attempts to insert mock fixtures using old column names (`sport_type`, `team_a`, `team_b`, `match_time`). It must be updated to align with the new schema (`league_id`, `competitor_a`, `competitor_b`, `kickoff_time`).

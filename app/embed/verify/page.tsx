@@ -38,33 +38,31 @@ async function VerifyContent({ searchParams }: { searchParams: Promise<{ token?:
   // 1. Fetch active sports from database
   const { data: activeSportsData } = await supabase
     .from("sport_settings")
-    .select("sport_name")
+    .select("sport_slug, sport_name, have_leagues")
     .eq("is_active", true);
 
-  const ALL_ACTIVE = (activeSportsData || []).map(s => {
-    const nameLower = s.sport_name.toLowerCase();
-    if (nameLower.includes("football")) return "football";
-    if (nameLower.includes("nba")) return "nba";
-    if (nameLower.includes("rugby")) return "rugby";
-    if (nameLower.includes("ufc")) return "ufc";
-    if (nameLower.includes("f1")) return "f1";
-    return nameLower;
-  });
+  const ALL_ACTIVE = (activeSportsData || []).map(s => ({
+    sport_slug: s.sport_slug,
+    sport_name: s.sport_name,
+    have_leagues: s.have_leagues
+  }));
 
   // Parse allowed sports from query param; fallback = all active sports
-  const allowedSports: string[] =
+  const allowedSports =
     sports && sports.trim()
       ? sports
         .split(",")
         .map((s) => s.trim().toLowerCase())
-        .filter((s) => ALL_ACTIVE.includes(s))
+        .map(slug => ALL_ACTIVE.find(as => as.sport_slug === slug))
+        .filter((as): as is (typeof ALL_ACTIVE)[0] => !!as)
       : ALL_ACTIVE;
 
   // Fetch leagues matching the allowed sports categories
+  const allowedSlugs = allowedSports.map(s => s.sport_slug);
   const { data: leagues } = await supabase
     .from("leagues")
     .select("id, name, sport_category, logo_url")
-    .in("sport_category", allowedSports)
+    .in("sport_category", allowedSlugs)
     .order("name", { ascending: true });
 
   return (

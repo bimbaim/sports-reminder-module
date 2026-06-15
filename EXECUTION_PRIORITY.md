@@ -7,8 +7,8 @@ This document maps out the prioritized backlog to convert the project from 72% m
 ## 🛑 Priority 0 (Must Fix Today)
 *Focus: Stabilization and security. Fixes broken components to make the application fully usable for internal testing.*
 
-### 1. TS-001: Rename `proxy.ts` → `middleware.ts`
-* **Impact:** Security Critical. Next.js router will execute middleware checks and restrict unauthenticated access to dashboard views.
+### 1. [FIXED] TS-001: Adopt `proxy.ts` Convention
+* **Impact:** Session management successfully migrated to the `proxy.ts` naming convention.
 * **File:** [proxy.ts](file:///d:/WORK/WHELLO/NON-WORDPRESS/sports-reminder-module/proxy.ts)
 
 ### 2. TS-002: Fix `sync-matches` Schema Mismatch

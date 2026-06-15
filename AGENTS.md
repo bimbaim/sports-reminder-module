@@ -98,5 +98,5 @@ A multi-tenant system allowing commercial pubs (tenants) to embed widgets on the
 
 ## 🔄 Safe Refactoring Guidelines
 1. **Verify schemas:** Cross-reference `matches` and `leagues` columns before updating match-sync scripts.
-2. **Check middleware naming:** The file named `proxy.ts` in root is bypassed by Next.js. If you must enable middleware, rename it to `middleware.ts` and test dashboard routing.
+2. **Middleware naming:** The middleware logic is defined in `proxy.ts` in the root. Ensure it is correctly intercepting dashboard routing.
 3. **Test Server Actions:** Ensure server actions are exported with `"use server"` at the top of the file.
