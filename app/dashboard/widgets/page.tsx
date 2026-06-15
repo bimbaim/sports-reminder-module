@@ -32,13 +32,9 @@ async function WidgetsData() {
   });
 
   const mappedSports = sports.map((s) => ({
-    id: s.sport_name.toLowerCase().includes("football") ? "football" : 
-        s.sport_name.toLowerCase().includes("nba") ? "nba" : 
-        s.sport_name.toLowerCase().includes("rugby") ? "rugby" : 
-        s.sport_name.toLowerCase().includes("ufc") ? "ufc" : 
-        s.sport_name.toLowerCase().includes("f1") ? "f1" : s.id,
+    id: s.sport_slug || s.id,
     label: s.sport_name,
-    realId: s.id // Keep the real UUID for reference
+    realId: s.id // Keep the real UUID for reference if needed
   }));
 
   return <WidgetStudio tenants={tenants || []} availableSports={mappedSports} />;

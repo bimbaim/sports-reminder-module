@@ -8,9 +8,11 @@ import { revalidatePath } from "next/cache";
 export type SportSetting = {
   id: string;
   sport_name: string;
+  sport_slug: string;
   api_url: string;
   api_key: string;
   is_active: boolean;
+  have_leagues: boolean;
   last_synced_at: string | null;
   created_at: string;
 };
@@ -100,22 +102,20 @@ export async function syncSportData(id: string) {
       headers["x-rapidapi-key"] = setting.api_key;
     }
 
-    const nameLower = setting.sport_name.toLowerCase();
-    
-    // Standalone sports (NBA, Rugby) don't need a separate league metadata sync
-    if (nameLower.includes("nba") || nameLower.includes("rugby")) {
+    // If the sport doesn't use a separate league structure (have_leagues = false), skip metadata sync
+    if (!setting.have_leagues) {
       return {
         success: true,
         message: `${setting.sport_name} metadata is managed automatically during match sync.`
       };
     }
 
-    const isFreeLiveFootballApi = setting.api_url.includes("free-api-live-football-data") || nameLower.includes("football");
+    const isFreeLiveFootballApi = setting.api_url.includes("free-api-live-football-data") || setting.sport_slug === "football";
 
     let leaguesUrl = `${setting.api_url}/leagues`;
     if (isFreeLiveFootballApi) {
       leaguesUrl = `${setting.api_url}/football-popular-leagues`;
-    } else if (nameLower.includes("f1")) {
+    } else if (setting.sport_slug === "f1") {
       leaguesUrl = `${setting.api_url}/competitions`;
     }
 
@@ -149,11 +149,7 @@ export async function syncSportData(id: string) {
     }
 
     // 3. Upsert leagues into DB
-    const dynamicSportCategory = nameLower.includes("football") ? "football" :
-                                 nameLower.includes("nba") ? "nba" :
-                                 nameLower.includes("rugby") ? "rugby" :
-                                 nameLower.includes("ufc") ? "ufc" :
-                                 nameLower.includes("f1") ? "f1" : setting.id;
+    const dynamicSportCategory = setting.sport_slug;
 
     const rows = leagues.slice(0, 50).map((item: any) => {
       const hasLeagueObject = !!item.league;

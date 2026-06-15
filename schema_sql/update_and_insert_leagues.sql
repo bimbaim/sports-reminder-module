@@ -22,7 +22,7 @@ CREATE INDEX idx_leagues_sport ON leagues(sport_category);
 -- 3. Tabel Jadwal Pertandingan Universal (Mendukung 8+ Liga di Gambar)
 CREATE TABLE matches (
     id VARCHAR(100) PRIMARY KEY,
-    league_id INT REFERENCES leagues(id) ON DELETE CASCADE NOT NULL,
+    league_id INT REFERENCES leagues(id) ON DELETE CASCADE, -- Nullable untuk mendukung sport standalone
     
     -- Menggunakan nama kompetitor yang fleksibel untuk tim, pembalap, maupun petarung
     competitor_a VARCHAR(150),                  -- "Arsenal" (Football), "Jon Jones" (UFC), atau NULL untuk event balap F1

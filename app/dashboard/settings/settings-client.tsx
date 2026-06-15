@@ -49,6 +49,7 @@ const SPORT_EMOJI: Record<string, string> = {
   ufc: "🥊",
   nba: "🏀",
   f1: "🏎️",
+  rugby: "🏉",
 };
 
 function maskKey(key: string): string {
@@ -82,12 +83,7 @@ function EditCredentialsDialog({
   const [apiUrl, setApiUrl] = useState(setting.api_url);
   const [apiKey, setApiKey] = useState(setting.api_key);
 
-  const nameLower = setting.sport_name.toLowerCase();
-  const emojiKey = nameLower.includes("football") ? "football" : 
-                  nameLower.includes("nba") ? "nba" : 
-                  nameLower.includes("rugby") ? "rugby" : 
-                  nameLower.includes("ufc") ? "ufc" : 
-                  nameLower.includes("f1") ? "f1" : "generic";
+  const emojiKey = setting.sport_slug;
   const emoji = SPORT_EMOJI[emojiKey] || "🏟️";
 
   // Update form state when dialog opens or setting changes
@@ -208,13 +204,7 @@ function SportCard({
   const [syncing, setSyncing] = useState(false);
   const [local, setLocal] = useState(setting);
 
-  const nameLower = local.sport_name.toLowerCase();
-  const emojiKey = nameLower.includes("football") ? "football" : 
-                  nameLower.includes("nba") ? "nba" : 
-                  nameLower.includes("rugby") ? "rugby" : 
-                  nameLower.includes("ufc") ? "ufc" : 
-                  nameLower.includes("f1") ? "f1" : "generic";
-
+  const emojiKey = local.sport_slug;
   const emoji = SPORT_EMOJI[emojiKey] || "🏟️";
   const hasCredentials = !!local.api_url && !!local.api_key;
 
@@ -234,15 +224,7 @@ function SportCard({
     setSyncing(true);
     try {
       // 1. Sync Leagues (metadata) - Only for sports that have separate league entities
-      // Standalone sports (NFL, NRL, AFL, NBA, etc.) manage their own league/competition structure
-      const isStandaloneSport = 
-        nameLower.includes("nba") || 
-        nameLower.includes("rugby") || 
-        nameLower.includes("nrl") || 
-        nameLower.includes("afl") || 
-        nameLower.includes("nfl");
-      
-      if (!isStandaloneSport) {
+      if (local.have_leagues) {
         const leagueResult = await syncSportData(local.id);
         if (!leagueResult.success) {
           toast.error(`League Sync: ${leagueResult.error}`);
