@@ -16,6 +16,14 @@ export default async function EmbedWidgetPage({
 
   const supabase = createAdminClient();
 
+  // 1. Fetch active sports from database
+  const { data: activeSportsData } = await supabase
+    .from("sport_settings")
+    .select("sport_key")
+    .eq("is_active", true);
+
+  const ALL_ACTIVE = (activeSportsData || []).map(s => s.sport_key);
+
   const { data: tenant } = await supabase
     .from("tenants")
     .select("*")
@@ -25,15 +33,14 @@ export default async function EmbedWidgetPage({
 
   if (!tenant) return notFound();
 
-  // Parse allowed sports from query param; fallback = all four
-  const ALL = ["football", "ufc", "nba", "f1"];
+  // Parse allowed sports from query param; fallback = all active sports
   const allowedSports: string[] =
     sports && sports.trim()
       ? sports
         .split(",")
         .map((s) => s.trim().toLowerCase())
-        .filter((s) => ALL.includes(s))
-      : ALL;
+        .filter((s) => ALL_ACTIVE.includes(s))
+      : ALL_ACTIVE;
 
   // Fetch leagues matching the allowed sports categories
   const { data: leagues } = await supabase

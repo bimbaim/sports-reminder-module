@@ -198,7 +198,6 @@ function SportCard({
   onUpdated: (s: SportSetting) => void;
 }) {
   const [syncing, setSyncing] = useState(false);
-  const [syncingSchedule, setSyncingSchedule] = useState(false);
   const [local, setLocal] = useState(setting);
 
   const emoji = SPORT_EMOJI[local.sport_key] || "🏟️";
@@ -216,34 +215,32 @@ function SportCard({
     }
   };
 
-  const handleSync = async () => {
+  const handleSyncData = async () => {
     setSyncing(true);
-    const result = await syncSportData(local.id);
-    setSyncing(false);
-
-    if (result.success) {
-      toast.success(result.message || "Sync completed.");
-      setLocal((s) => ({ ...s, last_synced_at: new Date().toISOString() }));
-    } else {
-      toast.error(result.error);
-    }
-  };
-
-  const handleSyncSchedule = async () => {
-    setSyncingSchedule(true);
     try {
-      const result = await ingestSportData(local.id);
-      if (result.success) {
-        toast.success(result.message || "Schedule sync completed.");
+      // 1. Sync Leagues (metadata) - Only if not NBA (NBA handles its own league)
+      if (local.sport_key !== "nba") {
+        const leagueResult = await syncSportData(local.id);
+        if (!leagueResult.success) {
+          toast.error(`League Sync: ${leagueResult.error}`);
+          setSyncing(false);
+          return;
+        }
+      }
+
+      // 2. Sync Matches (schedule)
+      const scheduleResult = await ingestSportData(local.id);
+      if (scheduleResult.success) {
+        toast.success(scheduleResult.message || "Full data synchronization completed.");
         setLocal((s) => ({ ...s, last_synced_at: new Date().toISOString() }));
       } else {
-        toast.error(result.error || "Failed to sync schedule.");
+        toast.error(`Schedule Sync: ${scheduleResult.error}`);
       }
     } catch (err: any) {
       console.error(err);
-      toast.error("An error occurred while syncing schedule.");
+      toast.error("An unexpected error occurred during synchronization.");
     } finally {
-      setSyncingSchedule(false);
+      setSyncing(false);
     }
   };
 
@@ -348,28 +345,14 @@ function SportCard({
           <Button
             variant="default"
             size="sm"
-            className="gap-2 font-semibold"
-            disabled={syncing || syncingSchedule || !hasCredentials}
-            onClick={handleSync}
+            className="flex-1 gap-2 font-semibold"
+            disabled={syncing || !hasCredentials || !local.is_active}
+            onClick={handleSyncData}
           >
             {syncing ? (
               <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Syncing...</>
             ) : (
-              <><RefreshCw className="h-3.5 w-3.5" />Sync Now</>
-            )}
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 font-semibold border-slate-200 hover:bg-slate-50 text-slate-700"
-            disabled={syncing || syncingSchedule || !hasCredentials || !local.is_active}
-            onClick={handleSyncSchedule}
-          >
-            {syncingSchedule ? (
-              <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Syncing...</>
-            ) : (
-              <><RefreshCw className="h-3.5 w-3.5" />Sync Schedule</>
+              <><RefreshCw className="h-3.5 w-3.5" />Sync Data</>
             )}
           </Button>
         </div>

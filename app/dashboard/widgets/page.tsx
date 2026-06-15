@@ -4,12 +4,26 @@ import { Suspense } from "react";
 
 async function WidgetsData() {
   const supabase = createAdminClient();
+  
+  // 1. Fetch tenants
   const { data: tenants } = await supabase
     .from("tenants")
     .select("*")
     .order("name", { ascending: true });
 
-  return <WidgetStudio tenants={tenants || []} />;
+  // 2. Fetch active sports
+  const { data: sports } = await supabase
+    .from("sport_settings")
+    .select("sport_key, sport_name")
+    .eq("is_active", true)
+    .order("sport_name", { ascending: true });
+
+  const mappedSports = (sports || []).map((s) => ({
+    id: s.sport_key,
+    label: s.sport_name,
+  }));
+
+  return <WidgetStudio tenants={tenants || []} availableSports={mappedSports} />;
 }
 
 export default function WidgetsPage() {

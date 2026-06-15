@@ -45,12 +45,18 @@ type FormState = {
   theme_mode: string;
 };
 
-const ALL_SPORTS: { id: string; label: string; emoji: string }[] = [
-  { id: "football", label: "Football", emoji: "⚽" },
-  { id: "ufc",     label: "UFC / MMA", emoji: "🥊" },
-  { id: "nba",     label: "NBA",       emoji: "🏀" },
-  { id: "f1",      label: "Formula 1", emoji: "🏎️" },
-];
+type SportOption = {
+  id: string;
+  label: string;
+};
+
+const SPORT_EMOJI: Record<string, string> = {
+  football: "⚽",
+  ufc: "🥊",
+  nba: "🏀",
+  f1: "🏎️",
+  rugby: "🏉",
+};
 
 // ---------------------------------------------------------------------------
 // Inline Widget Preview Component
@@ -59,10 +65,12 @@ function WidgetPreview({
   config,
   tenant,
   allowedSports,
+  availableSports,
 }: {
   config: FormState;
   tenant: Tenant;
   allowedSports: string[];
+  availableSports: SportOption[];
 }) {
   const isDark = config.theme_mode === "dark";
   const bgColor    = isDark ? "#0f172a" : config.secondary_color;
@@ -72,7 +80,7 @@ function WidgetPreview({
   const borderColor = isDark ? "#334155" : "#e2e8f0";
   const inputBg    = isDark ? "#0f172a" : "#f8fafc";
 
-  const visibleSports = ALL_SPORTS.filter((s) =>
+  const visibleSports = availableSports.filter((s) =>
     allowedSports.length === 0 || allowedSports.includes(s.id)
   );
 
@@ -143,7 +151,7 @@ function WidgetPreview({
                       </svg>
                     )}
                   </div>
-                  <span className="text-xs">{sport.emoji}</span>
+                  <span className="text-xs">{SPORT_EMOJI[sport.id] || "🏆"}</span>
                   <span className="text-xs font-medium" style={{ color: textColor }}>{sport.label}</span>
                 </div>
               ))}
@@ -166,13 +174,13 @@ function WidgetPreview({
 // ---------------------------------------------------------------------------
 // Main Widget Studio Component
 // ---------------------------------------------------------------------------
-export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
+export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], availableSports: SportOption[] }) {
   const [selectedTenantId, setSelectedTenantId] = useState<string>(
     tenants.length > 0 ? tenants[0].id : ""
   );
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [allowedSports, setAllowedSports] = useState<string[]>(["football", "ufc", "nba", "f1"]);
+  const [allowedSports, setAllowedSports] = useState<string[]>(availableSports.map(s => s.id));
 
   const selectedTenant = tenants.find((t) => t.id === selectedTenantId);
 
@@ -193,6 +201,11 @@ export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
       });
     }
   }, [selectedTenantId]);
+
+  // Sync allowed sports with available sports on load
+  useEffect(() => {
+    setAllowedSports(availableSports.map(s => s.id));
+  }, [availableSports]);
 
   const toggleSport = (id: string) => {
     setAllowedSports((prev) =>
@@ -376,7 +389,7 @@ export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {ALL_SPORTS.map((sport) => {
+                {availableSports.map((sport) => {
                   const active = allowedSports.includes(sport.id);
                   return (
                     <button
@@ -390,7 +403,7 @@ export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
                           : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground",
                       ].join(" ")}
                     >
-                      <span>{sport.emoji}</span>
+                      <span>{SPORT_EMOJI[sport.id] || "🏆"}</span>
                       {sport.label}
                       {active && (
                         <span className="ml-0.5 text-primary-foreground/70 text-xs">✓</span>
@@ -425,7 +438,7 @@ export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
             <div className="flex-1 bg-background rounded-md h-6 flex items-center px-3 border">
               <span className="text-xs font-mono text-muted-foreground truncate">
                 yourdomain.com/embed/verify?token={selectedTenant?.public_token}
-                {allowedSports.length > 0 && allowedSports.length < 4
+                {allowedSports.length > 0 && allowedSports.length < availableSports.length
                   ? `&sports=${sportsParam}`
                   : ""}
               </span>
@@ -437,6 +450,7 @@ export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
                 config={formData}
                 tenant={selectedTenant}
                 allowedSports={allowedSports}
+                availableSports={availableSports}
               />
             )}
           </div>
@@ -445,6 +459,7 @@ export function WidgetStudio({ tenants }: { tenants: Tenant[] }) {
 
       {/* ── Script Snippet ── */}
       <Card className="shadow-sm border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
+...
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div>

@@ -270,17 +270,39 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
     if (targetKey === "nba") {
       console.log("=== EXECUTING DEDICATED NBA SYNC ===");
 
-      // 1. Get NBA league ID from DB
-      const { data: nbaLeague } = await supabase
+      // 1. Ensure NBA league exists in DB
+      let { data: nbaLeague } = await supabase
         .from("leagues")
         .select("id")
         .eq("sport_category", "nba")
         .limit(1)
         .single();
 
-      const leagueId = nbaLeague?.id || 1; // Default to 1 if not found, but ideally should exist
+      let leagueId: number;
+
       if (!nbaLeague) {
-        console.warn("[NBASync] No NBA league found in database. Using ID: 1 as fallback.");
+        console.log("[NBASync] NBA league not found. Creating default NBA league entry...");
+        const { data: newLeague, error: createError } = await supabase
+          .from("leagues")
+          .upsert({
+            id: 1, // Using 1 as standard NBA ID
+            sport_category: "nba",
+            name: "NBA",
+            localized_name: "NBA Basketball",
+            country_code: "USA",
+            is_popular: true
+          }, { onConflict: "id" })
+          .select("id")
+          .single();
+
+        if (createError) {
+          console.error("[NBASync] Failed to create NBA league:", createError);
+          leagueId = 1;
+        } else {
+          leagueId = newLeague.id;
+        }
+      } else {
+        leagueId = nbaLeague.id;
       }
 
       // 2. Fetch for next 30 days (H+0 to H+30)
@@ -393,6 +415,151 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       };
     }
 
+    if (targetKey === "rugby") {
+      console.log("=== EXECUTING DEDICATED RUGBY (NRL) SYNC ===");
+
+      // 1. Ensure Rugby (NRL) league exists in DB
+      let { data: rugbyLeague } = await supabase
+        .from("leagues")
+        .select("id")
+        .eq("sport_category", "rugby")
+        .limit(1)
+        .single();
+
+      let leagueId: number;
+
+      if (!rugbyLeague) {
+        console.log("[RugbySync] Rugby league not found. Creating default NRL entry...");
+        const { data: newLeague, error: createError } = await supabase
+          .from("leagues")
+          .upsert({
+            id: 294, // Standard NRL uniqueTournament ID from sample
+            sport_category: "rugby",
+            name: "NRL",
+            localized_name: "NRL Premiership",
+            country_code: "AUS",
+            is_popular: true
+          }, { onConflict: "id" })
+          .select("id")
+          .single();
+
+        if (createError) {
+          console.error("[RugbySync] Failed to create Rugby league:", createError);
+          leagueId = 294;
+        } else {
+          leagueId = newLeague.id;
+        }
+      } else {
+        leagueId = rugbyLeague.id;
+      }
+
+      // 2. Fetch for next 30 days (H+0 to H+30)
+      const daysToFetch = 31;
+      const allEvents: any[] = [];
+      const today = new Date();
+
+      for (let i = 0; i < daysToFetch; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const yyyy = date.getFullYear();
+        const mm = date.getMonth() + 1;
+        const dd = date.getDate();
+        
+        // URL format: matches/{day}/{month}/{year}
+        const scheduleUrl = `${api_url}/api/rugby/matches/${dd}/${mm}/${yyyy}`;
+        console.log(`[RugbySync] Fetching for date: ${dd}/${mm}/${yyyy} URL: ${scheduleUrl}`);
+
+        try {
+          const res = await fetch(scheduleUrl, { method: "GET", headers });
+          if (res.ok) {
+            const json = await res.json();
+            const events = json.events || [];
+            allEvents.push(...events);
+            console.log(`[RugbySync] Received ${events.length} events for ${dd}/${mm}/${yyyy}`);
+          } else {
+            console.error(`[RugbySync] API Error ${res.status} for date ${dd}/${mm}/${yyyy}`);
+          }
+        } catch (err) {
+          console.error(`[RugbySync] Failed to fetch for ${dd}/${mm}/${yyyy}:`, err);
+        }
+      }
+
+      const totalEventsReceived = allEvents.length;
+      console.log(`[RugbySync] Total events collected: ${totalEventsReceived}`);
+
+      let totalMatchesSynced = 0;
+      let totalMatchesSkipped = 0;
+
+      if (allEvents.length > 0) {
+        // Deduplicate locally by ID
+        const uniqueEventsMap = new Map();
+        allEvents.forEach((e) => {
+          if (e.id) uniqueEventsMap.set(String(e.id), e);
+        });
+        const uniqueEvents = Array.from(uniqueEventsMap.values());
+
+        const eventIds = uniqueEvents.map((e) => String(e.id));
+
+        // Check for existing in DB
+        const { data: existingMatches } = await supabase
+          .from("matches")
+          .select("id")
+          .in("id", eventIds);
+
+        const existingIds = new Set(existingMatches?.map((m) => String(m.id)) || []);
+        const eventsToInsert = uniqueEvents.filter((e) => !existingIds.has(String(e.id)));
+        totalMatchesSkipped = totalEventsReceived - eventsToInsert.length;
+
+        if (eventsToInsert.length > 0) {
+          const mappedMatches = eventsToInsert.map((item: any) => {
+            let matchStatus = "scheduled";
+            if (item.status?.type === "finished") {
+              matchStatus = "finished";
+            } else if (item.status?.type === "inprogress") {
+              matchStatus = "live";
+            }
+
+            return {
+              id: String(item.id),
+              league_id: leagueId,
+              competitor_a: item.homeTeam?.name || "Home Team",
+              competitor_b: item.awayTeam?.name || "Away Team",
+              event_title: item.tournament?.name || "NRL Premiership",
+              kickoff_time: item.startTimestamp ? new Date(item.startTimestamp * 1000).toISOString() : new Date().toISOString(),
+              status: matchStatus,
+            };
+          });
+
+          const { data: insertData, error: insertError } = await supabase
+            .from("matches")
+            .insert(mappedMatches)
+            .select("id");
+
+          if (insertError) {
+            console.error("[RugbySync] Database INSERT Error:", insertError);
+            return { success: false, error: `Database INSERT Error: ${insertError.message}` };
+          }
+
+          totalMatchesSynced = insertData?.length || 0;
+        }
+      }
+
+      // Update timestamp
+      await supabase
+        .from("sport_settings")
+        .update({ last_synced_at: new Date().toISOString() })
+        .eq("id", sportId);
+
+      revalidatePath("/dashboard/matches");
+
+      const summaryMessage = `Sync Rugby complete! Received: ${totalEventsReceived} events. Inserted: ${totalMatchesSynced} new matches. Skipped: ${totalMatchesSkipped} matches.`;
+      console.log(`[RugbySync] SUCCESS: ${summaryMessage}`);
+      return {
+        success: true,
+        message: summaryMessage,
+      };
+    }
+
     // Penentuan endpoint liga secara akurat
     let leaguesUrl = `${api_url}/leagues`;
     const isFreeLiveFootballApi = api_url.includes("free-api-live-football-data") || targetKey === "football";
@@ -485,9 +652,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
     for (const dbLeague of dbLeagues) {
       let fixturesUrl = `${api_url}/fixtures?league=${dbLeague.id}&next=50`;
 
-      if (targetKey === "nba") {
-        fixturesUrl = `${api_url}/games?league=${dbLeague.id}&next=50`;
-      } else if (targetKey === "ufc") {
+      if (targetKey === "ufc") {
         fixturesUrl = `${api_url}/events?league=${dbLeague.id}&next=50`;
       }
 
