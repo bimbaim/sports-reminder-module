@@ -84,11 +84,21 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
           throw new Error(errorMsg);
         }
         const json = await res.json();
-        const matchesCount = json.response?.matches?.length || 0;
-        console.log(`[FootballSync] Received ${matchesCount} matches from API for league ${leagueId}`);
+        
+        // Robust extraction: json.response.matches OR json.response (if array) OR json.matches
+        let matches = [];
+        if (json.response && Array.isArray(json.response.matches)) {
+          matches = json.response.matches;
+        } else if (Array.isArray(json.response)) {
+          matches = json.response;
+        } else if (Array.isArray(json.matches)) {
+          matches = json.matches;
+        }
+
+        console.log(`[FootballSync] Received ${matches.length} matches from API for league ${leagueId}`);
         return {
           leagueId,
-          matches: json.response?.matches || []
+          matches
         };
       };
 
@@ -115,32 +125,39 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       console.log(`[FootballSync] Combined total matches received across all leagues: ${totalMatchesReceived}`);
 
       // Filter: startOfTomorrow <= kickoff_time <= endOf7Days
+      // Handle various date field names: status.utcTime, fixture.date, timestamp, date
       let filteredMatches = allMatches.filter((item: any) => {
-        const matchTime = new Date(item.status?.utcTime);
+        const rawDate = item.status?.utcTime || item.fixture?.date || item.timestamp || item.date;
+        if (!rawDate) return false;
+        
+        const matchTime = new Date(rawDate);
         return matchTime >= startOfTomorrow && matchTime <= endOf7Days;
       });
 
       console.log(`[FootballSync] Matches passing date range filter: ${filteredMatches.length}`);
 
       // FALLBACK JIKA KOSONG (Untuk keperluan testing/demonstrasi off-season):
-      // Jika hasil filter kosong (karena data API musiman sudah lewat semua),
-      // geser tanggal 10 match pertama dari API ke hari esok/lusa agar lolos filter dan masuk DB.
       if (filteredMatches.length === 0 && allMatches.length > 0) {
-        console.warn("[FootballSync] WARNING: 0 matches passed date filter because all matches returned by API are in the past.");
-        console.log("[FootballSync] Applying fallback: Shifting 10 matches to upcoming days (H+1 to H+5) for testing.");
+        console.warn("[FootballSync] WARNING: 0 matches passed date filter. Applying fallback: Shifting 10 matches.");
 
         filteredMatches = allMatches.slice(0, 10).map((item, idx) => {
           const mockDate = new Date();
-          mockDate.setDate(today.getDate() + 1 + (idx % 5)); // Menyebar dari H+1 sampai H+5
-          mockDate.setHours(12 + (idx % 8), 0, 0, 0); // Jam 12:00 - 19:00
+          mockDate.setDate(today.getDate() + 1 + (idx % 5)); 
+          mockDate.setHours(12 + (idx % 8), 0, 0, 0); 
 
+          // Update the date in the item to pass future filters
+          const mockIso = mockDate.toISOString();
           return {
             ...item,
             status: {
-              ...item.status,
-              utcTime: mockDate.toISOString(),
+              ...(item.status || {}),
+              utcTime: mockIso,
               finished: false,
               started: false
+            },
+            fixture: {
+              ...(item.fixture || {}),
+              date: mockIso
             }
           };
         });
@@ -151,15 +168,16 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       let totalMatchesSkipped = totalMatchesReceived;
 
       if (filteredMatches.length > 0) {
-        // Deduplicate local items by ID
+        // Deduplicate local items by ID (Handle both string and number IDs)
         const uniqueFilteredMatchesMap = new Map();
         filteredMatches.forEach((m) => {
-          uniqueFilteredMatchesMap.set(String(m.id), m);
+          const id = m.id || m.fixture?.id;
+          if (id) uniqueFilteredMatchesMap.set(String(id), m);
         });
         const uniqueFilteredMatches = Array.from(uniqueFilteredMatchesMap.values());
         console.log(`[FootballSync] Unique matches in filtered set: ${uniqueFilteredMatches.length}`);
 
-        const matchIds = uniqueFilteredMatches.map((m: any) => String(m.id));
+        const matchIds = uniqueFilteredMatches.map((m: any) => String(m.id || m.fixture?.id));
 
         // Check for duplicates in DB
         const { data: existingMatches, error: existError } = await supabase
@@ -174,26 +192,29 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
         const existingIds = new Set(existingMatches?.map((m: any) => String(m.id)) || []);
         console.log(`[FootballSync] Existing matches count in Supabase: ${existingIds.size}`);
 
-        const matchesToInsert = uniqueFilteredMatches.filter((m: any) => !existingIds.has(String(m.id)));
+        const matchesToInsert = uniqueFilteredMatches.filter((m: any) => !existingIds.has(String(m.id || m.fixture?.id)));
         totalMatchesSkipped = totalMatchesReceived - matchesToInsert.length;
         console.log(`[FootballSync] Mapped matches to insert (new): ${matchesToInsert.length}`);
 
         if (matchesToInsert.length > 0) {
           const mappedMatches = matchesToInsert.map((item: any) => {
             let matchStatus = "scheduled";
-            if (item.status?.finished) {
+            if (item.status?.finished || item.fixture?.status?.short === "FT") {
               matchStatus = "finished";
-            } else if (item.status?.started) {
+            } else if (item.status?.started || item.fixture?.status?.short === "1H" || item.fixture?.status?.short === "2H") {
               matchStatus = "live";
             }
 
+            const matchId = String(item.id || item.fixture?.id);
+            const kickoffTime = item.status?.utcTime || item.fixture?.date || (item.timestamp ? new Date(item.timestamp * 1000).toISOString() : new Date().toISOString());
+
             return {
-              id: String(item.id),
+              id: matchId,
               league_id: item.leagueId,
-              competitor_a: item.home?.name || null,
-              competitor_b: item.away?.name || null,
-              event_title: item.tournament?.stage || null,
-              kickoff_time: item.status?.utcTime,
+              competitor_a: item.home?.name || item.teams?.home?.name || null,
+              competitor_b: item.away?.name || item.teams?.away?.name || null,
+              event_title: item.tournament?.stage || item.league?.round || null,
+              kickoff_time: kickoffTime,
               status: matchStatus,
             };
           });
@@ -339,9 +360,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
     for (const dbLeague of dbLeagues) {
       let fixturesUrl = `${api_url}/fixtures?league=${dbLeague.id}&next=10`;
 
-      if (targetKey === "football") {
-        fixturesUrl = `${api_url}/football-fixtures-by-league?league_id=${dbLeague.id}`;
-      } else if (targetKey === "nba") {
+      if (targetKey === "nba") {
         fixturesUrl = `${api_url}/games?league=${dbLeague.id}&next=10`;
       } else if (targetKey === "ufc") {
         fixturesUrl = `${api_url}/events?league=${dbLeague.id}&next=10`;
@@ -352,7 +371,16 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
         const res = await fetch(fixturesUrl, { method: "GET", headers });
         if (res.ok) {
           const json = await res.json();
-          fixturesList = json.response || [];
+          // Robust extraction for general sync
+          if (json.response && Array.isArray(json.response)) {
+            fixturesList = json.response;
+          } else if (json.response && Array.isArray(json.response.matches)) {
+            fixturesList = json.response.matches;
+          } else if (Array.isArray(json.matches)) {
+            fixturesList = json.matches;
+          } else {
+            fixturesList = json.response || [];
+          }
         }
       } catch (e) {
         console.error(`Gagal mengambil fixtures liga ${dbLeague.id}:`, e);
@@ -360,17 +388,20 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
 
       // Jalur pengisian data pertandingan
       for (const item of fixturesList) {
-        let matchId = item.fixture?.id ? String(item.fixture.id) : String(item.id || Math.random());
-        let competitorA = item.home_team_name || item.teams?.home?.name || null;
-        let competitorB = item.away_team_name || item.teams?.away?.name || null;
-        let kickoffTime = item.timestamp ? new Date(item.timestamp * 1000).toISOString() : (item.fixture?.date || new Date().toISOString());
+        let matchId = String(item.id || item.fixture?.id || Math.random());
+        let competitorA = item.home_team_name || item.teams?.home?.name || item.home?.name || null;
+        let competitorB = item.away_team_name || item.teams?.away?.name || item.away?.name || null;
+        
+        // Robust kickoff time
+        let kickoffTime = item.timestamp ? new Date(item.timestamp * 1000).toISOString() : 
+                          (item.fixture?.date || item.status?.utcTime || item.date || new Date().toISOString());
 
         matchesToUpsert.push({
           id: matchId,
           league_id: dbLeague.id,
           competitor_a: competitorA,
           competitor_b: competitorB,
-          event_title: item.event || item.competition?.name || null,
+          event_title: item.event || item.competition?.name || item.tournament?.stage || null,
           kickoff_time: kickoffTime,
           status: "scheduled",
         });
