@@ -71,7 +71,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
 
     if (targetKey === "football") {
       console.log("=== EXECUTING DEDICATED FOOTBALL SYNC ===");
-      const footballLeagues = [47, 77];
+      const footballLeagues = [47, 77]; // Premier League, World Cup, Champions League
       console.log(`[FootballSync] Target leagues: ${footballLeagues.join(", ")}`);
 
       const fetchLeagueMatches = async (leagueId: number) => {
@@ -104,15 +104,14 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
 
       const results = await Promise.all(footballLeagues.map(fetchLeagueMatches));
 
-      // Define date range: Tomorrow (H+1) 00:00:00 to 7 days from today (H+7) 23:59:59
+      // Define date range: Today (H+0) to 30 days from today (H+30)
       const today = new Date();
-      const startOfTomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-      const endOf7Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7, 23, 59, 59, 999);
+      const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
+      const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30, 23, 59, 59, 999);
 
       console.log("[FootballSync] Date Range boundaries:");
       console.log(` - Current Date (H+0): ${today.toISOString()}`);
-      console.log(` - Start Date (H+1 00:00:00): ${startOfTomorrow.toISOString()}`);
-      console.log(` - End Date (H+7 23:59:59): ${endOf7Days.toISOString()}`);
+      console.log(` - End Date (H+30): ${endDate.toISOString()}`);
 
       const allMatches: any[] = [];
       results.forEach(({ leagueId, matches }) => {
@@ -127,12 +126,12 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       // Filter: startOfTomorrow <= kickoff_time <= endOf7Days
       // Handle various date field names: status.utcTime, fixture.date, timestamp, date
       let filteredMatches = allMatches.filter((item: any) => {
-        const rawDate = item.status?.utcTime || item.fixture?.date || item.timestamp || item.date;
-        if (!rawDate) return false;
-        
-        const matchTime = new Date(rawDate);
-        return matchTime >= startOfTomorrow && matchTime <= endOf7Days;
-      });
+  const rawDate = item.status?.utcTime || item.fixture?.date || item.timestamp || item.date;
+  if (!rawDate) return false;
+  
+  const matchTime = new Date(rawDate);
+  return matchTime >= startDate && matchTime <= endDate;
+});
 
       console.log(`[FootballSync] Matches passing date range filter: ${filteredMatches.length}`);
 
@@ -268,6 +267,132 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       };
     }
 
+    if (targetKey === "nba") {
+      console.log("=== EXECUTING DEDICATED NBA SYNC ===");
+
+      // 1. Get NBA league ID from DB
+      const { data: nbaLeague } = await supabase
+        .from("leagues")
+        .select("id")
+        .eq("sport_category", "nba")
+        .limit(1)
+        .single();
+
+      const leagueId = nbaLeague?.id || 1; // Default to 1 if not found, but ideally should exist
+      if (!nbaLeague) {
+        console.warn("[NBASync] No NBA league found in database. Using ID: 1 as fallback.");
+      }
+
+      // 2. Fetch for next 30 days (H+0 to H+30)
+      const daysToFetch = 31;
+      const allEvents: any[] = [];
+      const today = new Date();
+
+      for (let i = 0; i < daysToFetch; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}${mm}${dd}`;
+
+        const scheduleUrl = `${api_url}/nba-schedule-by-date?date=${dateStr}`;
+        console.log(`[NBASync] Fetching for date: ${dateStr} URL: ${scheduleUrl}`);
+
+        try {
+          const res = await fetch(scheduleUrl, { method: "GET", headers });
+          if (res.ok) {
+            const json = await res.json();
+            const events = json.response?.Events || [];
+            allEvents.push(...events);
+            console.log(`[NBASync] Received ${events.length} events for ${dateStr}`);
+          } else {
+            console.error(`[NBASync] API Error ${res.status} for date ${dateStr}`);
+          }
+        } catch (err) {
+          console.error(`[NBASync] Failed to fetch for ${dateStr}:`, err);
+        }
+      }
+
+      const totalEventsReceived = allEvents.length;
+      console.log(`[NBASync] Total events collected: ${totalEventsReceived}`);
+
+      let totalMatchesSynced = 0;
+      let totalMatchesSkipped = 0;
+
+      if (allEvents.length > 0) {
+        // Deduplicate locally by ID
+        const uniqueEventsMap = new Map();
+        allEvents.forEach((e) => {
+          if (e.id) uniqueEventsMap.set(String(e.id), e);
+        });
+        const uniqueEvents = Array.from(uniqueEventsMap.values());
+
+        const eventIds = uniqueEvents.map((e) => String(e.id));
+
+        // Check for existing in DB
+        const { data: existingMatches } = await supabase
+          .from("matches")
+          .select("id")
+          .in("id", eventIds);
+
+        const existingIds = new Set(existingMatches?.map((m) => String(m.id)) || []);
+        const eventsToInsert = uniqueEvents.filter((e) => !existingIds.has(String(e.id)));
+        totalMatchesSkipped = totalEventsReceived - eventsToInsert.length;
+
+        if (eventsToInsert.length > 0) {
+          const mappedMatches = eventsToInsert.map((item: any) => {
+            const homeTeam = item.competitors?.find((c: any) => c.isHome);
+            const awayTeam = item.competitors?.find((c: any) => !c.isHome);
+
+            let matchStatus = "scheduled";
+            if (item.completed) {
+              matchStatus = "finished";
+            } else if (item.status?.state === "in") {
+              matchStatus = "live";
+            }
+
+            return {
+              id: String(item.id),
+              league_id: leagueId,
+              competitor_a: homeTeam?.displayName || "Home Team",
+              competitor_b: awayTeam?.displayName || "Away Team",
+              event_title: item.status?.detail || "NBA Regular Season",
+              kickoff_time: item.date || new Date().toISOString(),
+              status: matchStatus,
+            };
+          });
+
+          const { data: insertData, error: insertError } = await supabase
+            .from("matches")
+            .insert(mappedMatches)
+            .select("id");
+
+          if (insertError) {
+            console.error("[NBASync] Database INSERT Error:", insertError);
+            return { success: false, error: `Database INSERT Error: ${insertError.message}` };
+          }
+
+          totalMatchesSynced = insertData?.length || 0;
+        }
+      }
+
+      // Update timestamp
+      await supabase
+        .from("sport_settings")
+        .update({ last_synced_at: new Date().toISOString() })
+        .eq("id", sportId);
+
+      revalidatePath("/dashboard/matches");
+
+      const summaryMessage = `Sync NBA complete! Received: ${totalEventsReceived} events. Inserted: ${totalMatchesSynced} new matches. Skipped: ${totalMatchesSkipped} matches.`;
+      console.log(`[NBASync] SUCCESS: ${summaryMessage}`);
+      return {
+        success: true,
+        message: summaryMessage,
+      };
+    }
+
     // Penentuan endpoint liga secara akurat
     let leaguesUrl = `${api_url}/leagues`;
     const isFreeLiveFootballApi = api_url.includes("free-api-live-football-data") || targetKey === "football";
@@ -358,12 +483,12 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
     const matchesToUpsert: any[] = [];
 
     for (const dbLeague of dbLeagues) {
-      let fixturesUrl = `${api_url}/fixtures?league=${dbLeague.id}&next=10`;
+      let fixturesUrl = `${api_url}/fixtures?league=${dbLeague.id}&next=50`;
 
       if (targetKey === "nba") {
-        fixturesUrl = `${api_url}/games?league=${dbLeague.id}&next=10`;
+        fixturesUrl = `${api_url}/games?league=${dbLeague.id}&next=50`;
       } else if (targetKey === "ufc") {
-        fixturesUrl = `${api_url}/events?league=${dbLeague.id}&next=10`;
+        fixturesUrl = `${api_url}/events?league=${dbLeague.id}&next=50`;
       }
 
       let fixturesList: any[] = [];
