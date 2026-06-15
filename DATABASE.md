@@ -103,7 +103,6 @@ This project uses Supabase with PostgreSQL. Row Level Security (RLS) is enabled 
 * **Purpose:** Upstream third-party API configurations.
 * **Columns:**
   * `id` (UUID, PK): Default `gen_random_uuid()`
-  * `sport_key` (VARCHAR(50), UNIQUE, NOT NULL)
   * `sport_name` (VARCHAR(100), NOT NULL)
   * `api_url` (TEXT, NOT NULL DEFAULT `''`)
   * `api_key` (TEXT, NOT NULL DEFAULT `''`)
@@ -112,7 +111,6 @@ This project uses Supabase with PostgreSQL. Row Level Security (RLS) is enabled 
   * `created_at` (TIMESTAMPTZ, default `NOW()`, NOT NULL)
 * **Constraints:**
   * PK: `id`
-  * UNIQUE: `sport_key`
 
 ---
 

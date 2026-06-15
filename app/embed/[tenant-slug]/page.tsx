@@ -19,10 +19,18 @@ export default async function EmbedWidgetPage({
   // 1. Fetch active sports from database
   const { data: activeSportsData } = await supabase
     .from("sport_settings")
-    .select("sport_key")
+    .select("sport_name")
     .eq("is_active", true);
 
-  const ALL_ACTIVE = (activeSportsData || []).map(s => s.sport_key);
+  const ALL_ACTIVE = (activeSportsData || []).map(s => {
+    const nameLower = s.sport_name.toLowerCase();
+    if (nameLower.includes("football")) return "football";
+    if (nameLower.includes("nba")) return "nba";
+    if (nameLower.includes("rugby")) return "rugby";
+    if (nameLower.includes("ufc")) return "ufc";
+    if (nameLower.includes("f1")) return "f1";
+    return nameLower;
+  });
 
   const { data: tenant } = await supabase
     .from("tenants")

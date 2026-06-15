@@ -175,12 +175,16 @@ function WidgetPreview({
 // Main Widget Studio Component
 // ---------------------------------------------------------------------------
 export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], availableSports: SportOption[] }) {
+  console.log("WidgetStudio Debug: availableSports received:", availableSports);
+
   const [selectedTenantId, setSelectedTenantId] = useState<string>(
     tenants.length > 0 ? tenants[0].id : ""
   );
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [allowedSports, setAllowedSports] = useState<string[]>(availableSports.map(s => s.id));
+
+  console.log("WidgetStudio Debug: allowedSports state:", allowedSports);
 
   const selectedTenant = tenants.find((t) => t.id === selectedTenantId);
 
@@ -388,41 +392,56 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {availableSports.map((sport) => {
-                  const active = allowedSports.includes(sport.id);
-                  return (
-                    <button
-                      key={sport.id}
-                      type="button"
-                      onClick={() => toggleSport(sport.id)}
-                      className={[
-                        "flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium border transition-all duration-150 select-none",
-                        active
-                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                          : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground",
-                      ].join(" ")}
-                    >
-                      <span>{SPORT_EMOJI[sport.id] || "🏆"}</span>
-                      {sport.label}
-                      {active && (
-                        <span className="ml-0.5 text-primary-foreground/70 text-xs">✓</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              {allowedSports.length === 0 && (
-                <p className="text-xs text-destructive mt-3">
-                  ⚠ Select at least one sport feed for the widget to work.
-                </p>
+              {availableSports.length > 0 ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {availableSports.map((sport) => {
+                      const active = allowedSports.includes(sport.id);
+                      return (
+                        <button
+                          key={sport.id}
+                          type="button"
+                          onClick={() => toggleSport(sport.id)}
+                          className={[
+                            "flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium border transition-all duration-150 select-none",
+                            active
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                              : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground",
+                          ].join(" ")}
+                        >
+                          <span>{SPORT_EMOJI[sport.id] || "🏆"}</span>
+                          {sport.label}
+                          {active && (
+                            <span className="ml-0.5 text-primary-foreground/70 text-xs">✓</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {allowedSports.length === 0 && (
+                    <p className="text-xs text-destructive mt-3 flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      Select at least one sport feed for the widget to work.
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Active:{" "}
+                    <code className="font-mono bg-muted px-1.5 py-0.5 rounded">
+                      {allowedSports.length > 0 ? allowedSports.join(", ") : "none"}
+                    </code>
+                  </p>
+                </>
+              ) : (
+                <div className="py-4 px-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800">
+                  <div className="flex items-center gap-2 font-semibold text-sm mb-1">
+                    <AlertCircle className="h-4 w-4" />
+                    No Active Sports Found
+                  </div>
+                  <p className="text-xs leading-relaxed">
+                    You haven't activated any sports yet. Go to the <strong>Settings</strong> page to configure and enable at least one sport feed (Football, NBA, Rugby, etc.) before you can use the widget.
+                  </p>
+                </div>
               )}
-              <p className="text-xs text-muted-foreground mt-3">
-                Active:{" "}
-                <code className="font-mono bg-muted px-1.5 py-0.5 rounded">
-                  {allowedSports.length > 0 ? allowedSports.join(", ") : "none"}
-                </code>
-              </p>
             </CardContent>
           </Card>
         </div>

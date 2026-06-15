@@ -44,10 +44,17 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
     return { success: false, error: `Konfigurasi olahraga dengan ID '${sportId}' tidak ditemukan di database Anda.` };
   }
 
-  const { sport_key, sport_name, api_url, api_key } = setting;
-  const targetKey = sport_key || sportId;
+  const { sport_name, api_url, api_key } = setting;
+  
+  // Logic to determine targetKey from sport_name
+  const nameLower = sport_name.toLowerCase();
+  const targetKey = nameLower.includes("football") ? "football" : 
+                   nameLower.includes("nba") ? "nba" : 
+                   nameLower.includes("rugby") ? "rugby" : 
+                   nameLower.includes("ufc") ? "ufc" : 
+                   nameLower.includes("f1") ? "f1" : sportId;
 
-  console.log(`Konfigurasi Ditemukan! Sport: ${sport_name}, URL: ${api_url}`);
+  console.log(`Konfigurasi Ditemukan! Sport: ${sport_name}, URL: ${api_url}, Detected Type: ${targetKey}`);
 
   if (!api_url || !api_key) {
     return {

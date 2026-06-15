@@ -24,7 +24,7 @@ async function MatchesData() {
   // 2. Fetch active sports configurations
   const { data: activeSports } = await supabase
     .from("sport_settings")
-    .select("id, sport_key, sport_name, is_active, last_synced_at")
+    .select("id, sport_name, is_active, last_synced_at")
     .eq("is_active", true)
     .order("sport_name", { ascending: true });
 

@@ -7,7 +7,6 @@ import { revalidatePath } from "next/cache";
 
 export type SportSetting = {
   id: string;
-  sport_key: string;
   sport_name: string;
   api_url: string;
   api_key: string;
@@ -31,6 +30,8 @@ export async function toggleSportActive(id: string, currentState: boolean) {
   }
 
   revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/widgets");
+  revalidatePath("/dashboard/matches");
   return { success: true };
 }
 
@@ -99,12 +100,13 @@ export async function syncSportData(id: string) {
       headers["x-rapidapi-key"] = setting.api_key;
     }
 
-    const isFreeLiveFootballApi = setting.api_url.includes("free-api-live-football-data") || setting.sport_key === "football";
+    const nameLower = setting.sport_name.toLowerCase();
+    const isFreeLiveFootballApi = setting.api_url.includes("free-api-live-football-data") || nameLower.includes("football");
 
     let leaguesUrl = `${setting.api_url}/leagues`;
     if (isFreeLiveFootballApi) {
       leaguesUrl = `${setting.api_url}/football-popular-leagues`;
-    } else if (setting.sport_key === "f1") {
+    } else if (nameLower.includes("f1")) {
       leaguesUrl = `${setting.api_url}/competitions`;
     }
 
@@ -138,14 +140,11 @@ export async function syncSportData(id: string) {
     }
 
     // 3. Upsert leagues into DB
-    const dynamicSportCategory = setting.sport_key || setting.id;
-
-    if (!dynamicSportCategory) {
-      return {
-        success: false,
-        error: "Gagal menentukan kategori olahraga. Pastikan kolom 'sport_key' atau 'id' di tabel sport_settings terisi."
-      };
-    }
+    const dynamicSportCategory = nameLower.includes("football") ? "football" :
+                                 nameLower.includes("nba") ? "nba" :
+                                 nameLower.includes("rugby") ? "rugby" :
+                                 nameLower.includes("ufc") ? "ufc" :
+                                 nameLower.includes("f1") ? "f1" : setting.id;
 
     const rows = leagues.slice(0, 50).map((item: any) => {
       const hasLeagueObject = !!item.league;

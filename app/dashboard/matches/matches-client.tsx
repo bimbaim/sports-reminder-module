@@ -31,7 +31,6 @@ type MatchItem = {
 
 type ActiveSport = {
   id: string;
-  sport_key: string;
   sport_name: string;
   is_active: boolean;
   last_synced_at: string | null;

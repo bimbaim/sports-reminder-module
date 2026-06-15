@@ -123,8 +123,8 @@ function EditCredentialsDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5">
-            <span className="text-xl">{SPORT_EMOJI[setting.sport_key] || "🏟️"}</span>
-            {setting.sport_name}
+            <span className="text-xl">{emoji}</span>
+            {local.sport_name}
           </DialogTitle>
           <DialogDescription>
             Update the API endpoint and authentication key for this sport feed.
@@ -200,7 +200,14 @@ function SportCard({
   const [syncing, setSyncing] = useState(false);
   const [local, setLocal] = useState(setting);
 
-  const emoji = SPORT_EMOJI[local.sport_key] || "🏟️";
+  const nameLower = local.sport_name.toLowerCase();
+  const emojiKey = nameLower.includes("football") ? "football" : 
+                  nameLower.includes("nba") ? "nba" : 
+                  nameLower.includes("rugby") ? "rugby" : 
+                  nameLower.includes("ufc") ? "ufc" : 
+                  nameLower.includes("f1") ? "f1" : "generic";
+
+  const emoji = SPORT_EMOJI[emojiKey] || "🏟️";
   const hasCredentials = !!local.api_url && !!local.api_key;
 
   const handleToggle = async () => {
@@ -219,7 +226,7 @@ function SportCard({
     setSyncing(true);
     try {
       // 1. Sync Leagues (metadata) - Only if not NBA (NBA handles its own league)
-      if (local.sport_key !== "nba") {
+      if (!nameLower.includes("nba")) {
         const leagueResult = await syncSportData(local.id);
         if (!leagueResult.success) {
           toast.error(`League Sync: ${leagueResult.error}`);
@@ -279,7 +286,7 @@ function SportCard({
                 )}
               </CardTitle>
               <CardDescription className="text-xs font-mono mt-0.5">
-                {local.sport_key}
+                {local.id.slice(0, 8)}...
               </CardDescription>
             </div>
           </div>
