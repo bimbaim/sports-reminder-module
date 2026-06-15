@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Copy, RefreshCw, LayoutTemplate, CheckCheck, Monitor, Smartphone } from "lucide-react";
+import { Copy, RefreshCw, LayoutTemplate, CheckCheck, Monitor, Smartphone, AlertCircle } from "lucide-react";
 import { updateWidgetSettings } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
