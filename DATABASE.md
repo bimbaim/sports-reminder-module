@@ -105,7 +105,7 @@ This project uses Supabase with PostgreSQL. Row Level Security (RLS) is enabled 
   * `id` (UUID, PK): Default `gen_random_uuid()`
   * `sport_key` (VARCHAR(50), UNIQUE, NOT NULL)
   * `sport_name` (VARCHAR(100), NOT NULL)
-  * `api_base_url` (TEXT, NOT NULL DEFAULT `''`)
+  * `api_url` (TEXT, NOT NULL DEFAULT `''`)
   * `api_key` (TEXT, NOT NULL DEFAULT `''`)
   * `is_active` (BOOLEAN, default `false`, NOT NULL)
   * `last_synced_at` (TIMESTAMPTZ, NULL)

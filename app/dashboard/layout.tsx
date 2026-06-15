@@ -4,7 +4,7 @@ import { Menu } from "lucide-react"; // Keep this import if child components dir
 import { createClient } from "@/lib/supabase/server"; // Keep this import if child components directly use `createClient()`
 import { Button } from "@/components/ui/button"; // Keep this import if child components directly use `createClient()`
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;

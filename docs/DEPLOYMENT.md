@@ -1,7 +1,6 @@
 # Production Deployment Guide
 
 ## 1. Pre-Deployment Checklist
-- [ ] Rename `proxy.ts` to `middleware.ts` (Required for security).
 - [ ] Environment variables registered in Production Host.
 - [ ] Database migrations applied to Production Supabase instance.
 - [ ] Meta WhatsApp Template approved by Meta.
