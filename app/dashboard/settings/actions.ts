@@ -101,6 +101,15 @@ export async function syncSportData(id: string) {
     }
 
     const nameLower = setting.sport_name.toLowerCase();
+    
+    // Standalone sports (NBA, Rugby) don't need a separate league metadata sync
+    if (nameLower.includes("nba") || nameLower.includes("rugby")) {
+      return {
+        success: true,
+        message: `${setting.sport_name} metadata is managed automatically during match sync.`
+      };
+    }
+
     const isFreeLiveFootballApi = setting.api_url.includes("free-api-live-football-data") || nameLower.includes("football");
 
     let leaguesUrl = `${setting.api_url}/leagues`;
