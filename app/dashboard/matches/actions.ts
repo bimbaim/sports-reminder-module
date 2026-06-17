@@ -242,6 +242,145 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       return { success: true, message: `F1 Sync complete. Processed ${mapped.length} races.` };
     }
 
+    if (targetKey === "fifa-world-cup-2026") {
+  console.log("=== EXECUTING DEDICATED FIFA WORLD CUP 2026 SYNC ===");
+
+  // 1. Get or Create FIFA League ID
+  let { data: fifaLeague } = await supabase
+    .from("leagues")
+    .select("id")
+    .eq("sport_category", "fifa-world-cup-2026")
+    .limit(1)
+    .single();
+
+  let leagueId = fifaLeague?.id || 2;
+  if (!fifaLeague) {
+    await supabase.from("leagues").upsert({
+      id: 2,
+      sport_category: "fifa-world-cup-2026",
+      name: "FIFA World Cup 2026",
+      country_code: "WORLD",
+      is_popular: true,
+    });
+  }
+
+  const allEvents: any[] = [];
+  const stages = ["group", "ko"];
+
+  // 2. Fetch Data via RapidAPI for both Group and Knockout stages
+  for (const stage of stages) {
+    try {
+      const res = await fetch(
+        `https://world-cup-2026-live-api.p.rapidapi.com/wc/draw?stage=${stage}`,
+        {
+          method: "GET",
+          headers: {
+            "x-rapidapi-key": api_key,  // ✅ USE DATABASE KEY (not hardcoded!)
+            "x-rapidapi-host": "world-cup-2026-live-api.p.rapidapi.com",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!res.ok) {
+        console.warn(`FIFA World Cup stage=${stage} returned HTTP ${res.status}`);
+        continue;
+      }
+
+      const json = await res.json();
+      
+      // ✅ Better debugging: log the actual response structure
+      console.log(`FIFA stage=${stage} response:`, { 
+        success: json.success, 
+        dataType: Array.isArray(json.data) ? "array" : typeof json.data,
+        dataLength: Array.isArray(json.data) ? json.data.length : 0,
+        responseKeys: Object.keys(json).slice(0, 5)
+      });
+
+      // ✅ Check multiple possible response structures
+      const responseData = json.data || json.response || [];
+      
+      if (Array.isArray(responseData) && responseData.length > 0) {
+        allEvents.push(...responseData);
+        console.log(`FIFA stage=${stage}: Added ${responseData.length} events. Total: ${allEvents.length}`);
+      } else {
+        console.warn(`FIFA stage=${stage}: No valid data array. Got: ${JSON.stringify(responseData).slice(0, 100)}`);
+      }
+    } catch (stageError: any) {
+      console.error(`FIFA World Cup stage=${stage} fetch error:`, stageError.message);
+    }
+  }
+
+  console.log(`FIFA World Cup: Total events after fetch = ${allEvents.length}`);
+
+  // ✅ Early return if no data (with informative message)
+  if (allEvents.length === 0) {
+    console.warn("FIFA World Cup: No events fetched. Check API response structure.");
+    return { 
+      success: false, 
+      error: "FIFA World Cup: No events returned from API. Check API credentials and verify the API endpoint is working." 
+    };
+  }
+
+  // 3. Map and Upsert to Supabase
+  try {
+    const mappedMatches = allEvents.map((item: any) => {
+      // ✅ More flexible field extraction
+      const homeTeam = item.home || item.homeTeam || item.competitor_a || "Home Team";
+      const awayTeam = item.away || item.awayTeam || item.competitor_b || "Away Team";
+      const matchId = item.matchId || item.id || `fifa-${Math.random()}`;
+      
+      return {
+        id: String(matchId),
+        league_id: leagueId,
+        competitor_a: homeTeam,
+        competitor_b: awayTeam,
+        event_title: item.group 
+          ? `Group ${item.group} - Round ${item.round}` 
+          : `Knockout Stage - Round ${item.round || '1'}`,
+        kickoff_time: item.kickoff || item.date || new Date().toISOString(),
+        status: (item.statusText === "finished" || item.status === "finished") ? "finished" : "scheduled",
+      };
+    });
+
+    console.log(`FIFA World Cup: Mapped ${mappedMatches.length} matches, attempting upsert...`);
+    
+    const { error: upsertError } = await supabase
+      .from("matches")
+      .upsert(mappedMatches);
+    
+    if (upsertError) {
+      console.error("FIFA Upsert error:", upsertError);
+      return { 
+        success: false, 
+        error: `FIFA upsert failed: ${upsertError.message}` 
+      };
+    }
+    
+    console.log(`FIFA World Cup: Upsert successful! ${mappedMatches.length} matches inserted.`);
+    
+  } catch (mapError: any) {
+    console.error("FIFA mapping/upsert error:", mapError.message);
+    return { 
+      success: false, 
+      error: `FIFA mapping failed: ${mapError.message}` 
+    };
+  }
+
+  // 4. Update Settings and Revalidate
+  await supabase
+    .from("sport_settings")
+    .update({ last_synced_at: new Date().toISOString() })
+    .eq("id", sportId);
+
+  revalidatePath("/dashboard/matches");
+
+  return {
+    success: true,
+    message: `Sync FIFA World Cup 2026 complete. Processed ${allEvents.length} events.`,
+  };
+}
+
     // --- GENERAL FALLBACK SYNC ---
     let leaguesUrl = `${api_url}/leagues`;
     if (targetKey === "football") leaguesUrl = `${api_url}/football-popular-leagues`;
