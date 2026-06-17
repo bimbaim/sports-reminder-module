@@ -172,20 +172,25 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
           return { ...item, _parsedDate: null };
         }
 
-        if (!minDate || matchTime < minDate) minDate = matchTime;
-        if (!maxDate || matchTime > maxDate) maxDate = matchTime;
+        // Use type casting to assist TS narrowing if it's struggling
+        const validTime = matchTime as Date;
 
-        return { ...item, _parsedDate: matchTime };
+        if (!minDate || validTime < minDate) minDate = validTime;
+        if (!maxDate || validTime > maxDate) maxDate = validTime;
+
+        return { ...item, _parsedDate: validTime };
       });
 
-      const minDateStr = minDate instanceof Date ? minDate.toISOString() : "None";
-      const maxDateStr = maxDate instanceof Date ? maxDate.toISOString() : "None";
+      // Safely format dates for logging without using instanceof if TS complains about the left-hand type
+      const minDateStr = (minDate as any)?.toISOString?.() || "None";
+      const maxDateStr = (maxDate as any)?.toISOString?.() || "None";
+      
       console.log(`Date Analysis: Min=${minDateStr}, Max=${maxDateStr}, Invalid=${invalidDatesCount}`);
       console.log(`Filter Range: ${startDate.toISOString()} TO ${endDate.toISOString()}`);
 
       let filteredMatches = parsedMatches.filter((item: any) => {
         if (!item._parsedDate) return false;
-        return item._parsedDate >= startDate && item._parsedDate <= endDate;
+        return (item._parsedDate as Date) >= startDate && (item._parsedDate as Date) <= endDate;
       });
 
       console.log(`Matches after date filtering: ${filteredMatches.length}`);
