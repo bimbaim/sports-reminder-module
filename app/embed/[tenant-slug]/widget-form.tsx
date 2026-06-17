@@ -37,6 +37,7 @@ const SPORT_EMOJI: Record<string, string> = {
   nba: "🏀",
   f1: "🏎️",
   nrl: "🏉",
+  "fifa-world-cup-2026": "🏆",
 };
 
 export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) {
