@@ -36,6 +36,9 @@ type Tenant = {
   secondary_color?: string | null;
   theme_mode?: string | null;
   custom_cta_text?: string | null;
+  font_family?: string | null;
+  font_size?: string | null;
+  widget_settings?: any;
 };
 
 type FormState = {
@@ -43,6 +46,9 @@ type FormState = {
   secondary_color: string;
   custom_cta_text: string;
   theme_mode: string;
+  font_family: string;
+  font_size: string;
+  logo_url: string;
 };
 
 type SportOption = {
@@ -50,6 +56,21 @@ type SportOption = {
   label: string;
   have_leagues: boolean;
 };
+
+const FONT_OPTIONS = [
+  { label: "Inter", value: "var(--font-inter), sans-serif" },
+  { label: "Roboto", value: "var(--font-roboto), sans-serif" },
+  { label: "Poppins", value: "var(--font-poppins), sans-serif" },
+  { label: "Montserrat", value: "var(--font-montserrat), sans-serif" },
+  { label: "System", value: "system-ui, sans-serif" },
+];
+
+const FONT_SIZE_OPTIONS = [
+  { label: "Small (12px)", value: "12px" },
+  { label: "Normal (14px)", value: "14px" },
+  { label: "Medium (16px)", value: "16px" },
+  { label: "Large (18px)", value: "18px" },
+];
 
 const SPORT_EMOJI: Record<string, string> = {
   football: "⚽",
@@ -88,14 +109,16 @@ function WidgetPreview({
 
   // Determine if we should show the "Favorite Sports" step in preview
   const showSportsStep = visibleSports.length > 1;
-
-  // Determine if league selector would show
   const showLeagueSelector = visibleSports.some(s => s.have_leagues);
 
   return (
     <div
       className="w-full h-full flex items-center justify-center p-6 transition-all duration-300"
-      style={{ backgroundColor: bgColor }}
+      style={{ 
+        backgroundColor: bgColor,
+        fontFamily: config.font_family,
+        fontSize: config.font_size
+      }}
     >
       <div
         className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl border transition-all duration-300"
@@ -107,10 +130,14 @@ function WidgetPreview({
           {/* Header */}
           <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
+              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0 overflow-hidden"
               style={{ backgroundColor: config.primary_color }}
             >
-              {tenant.name.charAt(0).toUpperCase()}
+              {config.logo_url ? (
+                <img src={config.logo_url} alt={tenant.name} className="w-full h-full object-cover" />
+              ) : (
+                tenant.name.charAt(0).toUpperCase()
+              )}
             </div>
             <div>
               <p className="font-bold text-sm leading-tight" style={{ color: textColor }}>
@@ -204,23 +231,26 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
 
   const selectedTenant = tenants.find((t) => t.id === selectedTenantId);
 
-  const [formData, setFormData] = useState<FormState>({
-    primary_color: selectedTenant?.primary_color || "#6366f1",
-    secondary_color: selectedTenant?.secondary_color || "#ffffff",
-    custom_cta_text: selectedTenant?.custom_cta_text || "Remind Me",
-    theme_mode: selectedTenant?.theme_mode || "light",
-  });
+  const getInitialData = (tenant: Tenant | undefined): FormState => {
+    const ws = tenant?.widget_settings || {};
+    return {
+      primary_color: ws.primary_color || tenant?.primary_color || "#6366f1",
+      secondary_color: ws.secondary_color || tenant?.secondary_color || "#ffffff",
+      custom_cta_text: ws.custom_cta_text || tenant?.custom_cta_text || "Remind Me",
+      theme_mode: ws.theme_mode || tenant?.theme_mode || "light",
+      font_family: ws.font_family || tenant?.font_family || "var(--font-inter), sans-serif",
+      font_size: ws.font_size || tenant?.font_size || "14px",
+      logo_url: ws.logo_url || tenant?.logo_url || "",
+    };
+  };
+
+  const [formData, setFormData] = useState<FormState>(getInitialData(selectedTenant));
 
   useEffect(() => {
     if (selectedTenant) {
-      setFormData({
-        primary_color: selectedTenant.primary_color || "#6366f1",
-        secondary_color: selectedTenant.secondary_color || "#ffffff",
-        custom_cta_text: selectedTenant.custom_cta_text || "Remind Me",
-        theme_mode: selectedTenant.theme_mode || "light",
-      });
+      setFormData(getInitialData(selectedTenant));
     }
-  }, [selectedTenantId]);
+  }, [selectedTenantId, selectedTenant]);
 
   // Sync allowed sports with available sports on load
   useEffect(() => {
@@ -333,6 +363,20 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
                   <p className="text-xs text-muted-foreground">Text displayed on the submit button.</p>
                 </div>
 
+                {/* Logo Override */}
+                <div className="space-y-2">
+                  <Label htmlFor="logo_url" className="text-sm font-medium">Widget Logo Override</Label>
+                  <Input
+                    id="logo_url"
+                    name="logo_url"
+                    value={formData.logo_url}
+                    onChange={(e) => setFormData((p) => ({ ...p, logo_url: e.target.value }))}
+                    placeholder="https://cdn.example.com/widget-logo.png"
+                    className="font-medium"
+                  />
+                  <p className="text-xs text-muted-foreground">Optional: Override global tenant logo for this widget.</p>
+                </div>
+
                 {/* Colors */}
                 <div className="grid grid-cols-2 gap-5">
                   {(["primary_color", "secondary_color"] as const).map((key) => (
@@ -388,6 +432,49 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
                     </SelectContent>
                   </Select>
                   <input type="hidden" name="theme_mode" value={formData.theme_mode} />
+                </div>
+
+                {/* Typography Configuration */}
+                <div className="grid grid-cols-2 gap-5 pt-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Font Family</Label>
+                    <Select
+                      value={formData.font_family}
+                      onValueChange={(val) => setFormData((p) => ({ ...p, font_family: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select font" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FONT_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <input type="hidden" name="font_family" value={formData.font_family} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Base Font Size</Label>
+                    <Select
+                      value={formData.font_size}
+                      onValueChange={(val) => setFormData((p) => ({ ...p, font_size: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FONT_SIZE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <input type="hidden" name="font_size" value={formData.font_size} />
+                  </div>
                 </div>
 
                 <Button type="submit" className="w-full font-semibold" disabled={isSaving}>

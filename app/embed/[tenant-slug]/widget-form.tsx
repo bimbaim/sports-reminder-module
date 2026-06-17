@@ -10,6 +10,9 @@ type Tenant = {
   primary_color?: string | null;
   secondary_color?: string | null;
   custom_cta_text?: string | null;
+  font_family?: string | null;
+  font_size?: string | null;
+  widget_settings?: any;
 };
 
 type SportSetting = {
@@ -41,7 +44,13 @@ const SPORT_EMOJI: Record<string, string> = {
 };
 
 export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) {
-  const primary = tenant.primary_color || "#6366f1";
+  const ws = tenant.widget_settings || {};
+  
+  const primary = ws.primary_color || tenant.primary_color || "#6366f1";
+  const fontFamily = ws.font_family || tenant.font_family || "var(--font-inter), sans-serif";
+  const fontSize = ws.font_size || tenant.font_size || "14px";
+  const ctaText = ws.custom_cta_text || tenant.custom_cta_text || "Remind Me";
+  const logoUrl = ws.logo_url || tenant.logo_url || null;
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -210,7 +219,7 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
   );
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-md mx-auto" style={{ fontFamily, fontSize }}>
       {/* Card Wrapper */}
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
         {/* Top Accent bar */}
@@ -220,10 +229,14 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
           {/* Header */}
           <div className="flex items-center gap-3.5 mb-6">
             <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-lg flex-shrink-0 shadow-sm"
+              className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-lg flex-shrink-0 shadow-sm overflow-hidden"
               style={{ backgroundColor: primary }}
             >
-              {tenant.name.charAt(0).toUpperCase()}
+              {logoUrl ? (
+                <img src={logoUrl} alt={tenant.name} className="w-full h-full object-cover" />
+              ) : (
+                tenant.name.charAt(0).toUpperCase()
+              )}
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 leading-tight">{tenant.name}</h2>
@@ -436,7 +449,7 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
               className="w-full py-3 rounded-xl text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
               style={{ backgroundColor: primary }}
             >
-              {loading ? "Subscribing…" : (tenant.custom_cta_text || "Remind Me")}
+              {loading ? "Subscribing…" : ctaText}
             </button>
           </form>
         </div>
