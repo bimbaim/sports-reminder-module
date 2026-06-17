@@ -66,6 +66,26 @@ export async function getTeamsForLeagues(leagueIds: number[]) {
   return Array.from(teams).sort((a, b) => a.localeCompare(b));
 }
 
+export async function getEventsForSport(sportCategory: string) {
+  if (!sportCategory) return [];
+
+  const supabase = createAdminClient();
+  const { data: matches, error } = await supabase
+    .from("matches")
+    .select("id, home_team, away_team, tournament_name, kickoff_time")
+    .eq("sport_category", sportCategory)
+    .gte("kickoff_time", new Date().toISOString())
+    .order("kickoff_time", { ascending: true })
+    .limit(50);
+
+  if (error) {
+    console.error("Error fetching events for sport:", error);
+    return [];
+  }
+
+  return matches || [];
+}
+
 export async function subscribeToTenant(tenantId: string, formData: FormData) {
   try {
     const email = formData.get("email")?.toString();

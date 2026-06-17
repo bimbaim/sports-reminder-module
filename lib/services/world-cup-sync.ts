@@ -8,14 +8,16 @@ export class WorldCupSyncService {
   private supabase: SupabaseClient;
   private apiKey: string;
   private apiUrl: string;
-  private leagueId = 77; // Using 77 to match existing World Cup references or a new one if preferred.
+  private sportCategory: string;
+  private leagueId = 77; 
   // We'll use 2026 for specifically "FIFA World Cup 2026" sport category.
   private customLeagueId = 2026; 
 
-  constructor(supabase: SupabaseClient, apiKey: string, apiUrl: string) {
+  constructor(supabase: SupabaseClient, apiKey: string, apiUrl: string, sportCategory: string = "fifa-world-cup-2026") {
     this.supabase = supabase;
     this.apiKey = apiKey;
     this.apiUrl = apiUrl;
+    this.sportCategory = sportCategory;
   }
 
   /**
@@ -57,7 +59,7 @@ export class WorldCupSyncService {
   private async ensureLeagueExists() {
     const { error } = await this.supabase.from("leagues").upsert({
       id: this.customLeagueId,
-      sport_category: "fifa-world-cup-2026",
+      sport_category: this.sportCategory,
       name: "FIFA World Cup 2026",
       country_code: "USA",
       is_popular: true,
@@ -129,6 +131,7 @@ export class WorldCupSyncService {
       const matchData: any = {
         id: item.matchId || `wc26-${stage}-${home}-${away}-${new Date(kickoff).getTime()}`.toLowerCase().replace(/\s+/g, '-'),
         league_id: this.customLeagueId,
+        sport_category: this.sportCategory,
         competitor_a: home,
         competitor_b: away,
         event_title: eventTitle,

@@ -149,7 +149,7 @@ export async function syncSportData(id: string) {
     }
 
     // 3. Upsert leagues into DB
-    const dynamicSportCategory = setting.sport_slug;
+    const dynamicSportCategory = setting.sport_category || setting.sport_slug;
 
     const rows = leagues.slice(0, 50).map((item: any) => {
       const hasLeagueObject = !!item.league;

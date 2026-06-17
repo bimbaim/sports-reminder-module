@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Copy, RefreshCw, LayoutTemplate, CheckCheck, Monitor, Smartphone, AlertCircle } from "lucide-react";
+import { Copy, RefreshCw, LayoutTemplate, CheckCheck, Monitor, Smartphone, AlertCircle, Shield, Users, Trophy} from "lucide-react";
 import { updateWidgetSettings } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -51,6 +52,7 @@ type FormState = {
   font_size: string;
   logo_url: string;
   layout_variant: string;
+  allowed_sports: string[]; // List of sport slugs enabled for this widget
 };
 
 type SportOption = {
@@ -76,10 +78,11 @@ const FONT_SIZE_OPTIONS = [
 
 const SPORT_EMOJI: Record<string, string> = {
   football: "⚽",
-  ufc: "🥊",
-  nba: "🏀",
-  f1: "🏎️",
-  nrl: "🏉",
+  basketball: "🏀",
+  rugby: "🏉",
+  tennis: "🎾",
+  mma: "🥊",
+  motorsports: "🏎️",
 };
 
 // ---------------------------------------------------------------------------
@@ -88,32 +91,19 @@ const SPORT_EMOJI: Record<string, string> = {
 function WidgetPreview({
   config,
   tenant,
-  allowedSports,
-  availableSports,
 }: {
   config: FormState;
   tenant: Tenant;
-  allowedSports: string[];
-  availableSports: SportOption[];
 }) {
   const isDark = config.theme_mode === "dark";
-  const bgColor    = isDark ? "#0f172a" : config.secondary_color;
-  const cardBg     = isDark ? "#1e293b" : "#ffffff";
-  const textColor  = isDark ? "#f1f5f9" : "#0f172a";
+  const cardBg = isDark ? "#1e293b" : "#ffffff";
+  const textColor = isDark ? "#f1f5f9" : "#0f172a";
   const mutedColor = isDark ? "#94a3b8" : "#64748b";
   const borderColor = isDark ? "#334155" : "#e2e8f0";
-  const inputBg    = isDark ? "#0f172a" : "#f8fafc";
-
-  // Filter based on what's active in the studio
-  const visibleSports = availableSports.filter((s) =>
-    allowedSports.length === 0 || allowedSports.includes(s.id)
-  );
+  const inputBg = isDark ? "#0f172a" : "#f8fafc";
+  const bgColor = isDark ? "#020617" : "#f1f5f9";
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-
-  // Determine if we should show the "Favorite Sports" step in preview
-  const showSportsStep = visibleSports.length > 1;
-  const showLeagueSelector = visibleSports.some(s => s.have_leagues);
 
   const isSticky = config.layout_variant === "sticky";
 
@@ -164,43 +154,28 @@ function WidgetPreview({
           </div>
         ))}
 
-        {/* Sports Selector Preview (Only if > 1) */}
-        {showSportsStep && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold" style={{ color: mutedColor }}>Favorite Sports</p>
-            <div className="flex flex-wrap gap-1.5">
-              {visibleSports.map((sport, i) => (
-                <div
-                  key={sport.id}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold"
-                  style={{ 
-                    borderColor: i === 0 ? config.primary_color : borderColor, 
-                    backgroundColor: i === 0 ? config.primary_color : "transparent",
-                    color: i === 0 ? "#ffffff" : textColor
-                  }}
+        {/* Enabled Sports Preview */}
+        <div className="bg-slate-50 border rounded-lg p-3 space-y-2" style={{ backgroundColor: inputBg, borderColor }}>
+          <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider text-slate-400">
+            Enabled Sports
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {config.allowed_sports.length > 0 ? (
+              config.allowed_sports.map(slug => (
+                <div 
+                  key={slug} 
+                  className="px-2 py-0.5 rounded-md border text-[10px] font-bold flex items-center gap-1"
+                  style={{ backgroundColor: bgColor, borderColor, color: textColor }}
                 >
-                  <span>{SPORT_EMOJI[sport.id] || "🏆"}</span>
-                  {sport.label}
+                  <span>{SPORT_EMOJI[slug] || "🏟️"}</span>
+                  {slug.charAt(0).toUpperCase() + slug.slice(1)}
                 </div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <p className="text-[10px] text-slate-400 italic">No sports enabled</p>
+            )}
           </div>
-        )}
-
-        {/* League Selector Preview - Only if needed */}
-        {showLeagueSelector && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold" style={{ color: mutedColor }}>Select Leagues to Follow</p>
-            <div className="space-y-1.5 border rounded-lg p-2 max-h-24 overflow-hidden" style={{ borderColor, backgroundColor: inputBg }}>
-              {[1, 2].map((_, i) => (
-                <div key={i} className="flex items-center gap-2 text-[10px] opacity-60">
-                  <div className="w-3 h-3 rounded border" style={{ borderColor }} />
-                  <div className="h-2 w-20 bg-slate-300 rounded animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* CTA */}
         <button
@@ -257,9 +232,6 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
   );
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [allowedSports, setAllowedSports] = useState<string[]>(availableSports.map(s => s.id));
-
-  console.log("WidgetStudio Debug: allowedSports state:", allowedSports);
 
   const selectedTenant = tenants.find((t) => t.id === selectedTenantId);
 
@@ -274,6 +246,7 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
       font_size: ws.font_size || tenant?.font_size || "14px",
       logo_url: ws.logo_url || tenant?.logo_url || "",
       layout_variant: ws.layout_variant || "inline",
+      allowed_sports: ws.allowed_sports || availableSports.map(s => s.id),
     };
   };
 
@@ -285,15 +258,19 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
     }
   }, [selectedTenantId, selectedTenant]);
 
-  // Sync allowed sports with available sports on load
-  useEffect(() => {
-    setAllowedSports(availableSports.map(s => s.id));
-  }, [availableSports]);
-
-  const toggleSport = (id: string) => {
-    setAllowedSports((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
+  const toggleSport = (sportId: string) => {
+    setFormData(prev => {
+      const current = prev.allowed_sports || [];
+      const isSelected = current.includes(sportId);
+      const next = isSelected 
+        ? current.filter(id => id !== sportId) 
+        : [...current, sportId];
+      
+      // Prevent emptying completely if you want at least one sport
+      if (next.length === 0) return prev; 
+      
+      return { ...prev, allowed_sports: next };
+    });
   };
 
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -312,9 +289,16 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
 
   // Dynamic base URL
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://yourdomain.com";
-  const sportsParam = allowedSports.join(",");
 
-  const scriptSnippet = `<script src="${baseUrl}/widget.js" data-token="${selectedTenant?.public_token || ""}" data-layout="${formData.layout_variant}" data-sports="${sportsParam}" defer></script>`;
+  // Allowed sports based on multi-select configuration
+  const allowedSports = availableSports.filter(s => formData.allowed_sports.includes(s.id));
+  const sportsParam = formData.allowed_sports.join(",");
+
+  const scriptSnippet = `<script src="${baseUrl}/widget.js" 
+  data-token="${selectedTenant?.public_token || ""}" 
+  data-layout="${formData.layout_variant}" 
+  data-sports="${sportsParam}"
+  defer></script>`;
 
   const copySnippet = async () => {
     await navigator.clipboard.writeText(scriptSnippet);
@@ -533,74 +517,35 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
                   </div>
                 </div>
 
+                <div className="pt-2">
+                  <Label className="text-sm font-medium mb-3 block">Enabled Sports</Label>
+                  <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    {availableSports.map((sport) => (
+                      <div key={sport.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`sport-${sport.id}`} 
+                          checked={formData.allowed_sports.includes(sport.id)}
+                          onCheckedChange={() => toggleSport(sport.id)}
+                        />
+                        <label
+                          htmlFor={`sport-${sport.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-1.5"
+                        >
+                          <span className="text-base">{SPORT_EMOJI[sport.id] || "🏟️"}</span>
+                          {sport.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <input type="hidden" name="allowed_sports" value={formData.allowed_sports.join(",")} />
+                </div>
+
                 <Button type="submit" className="w-full font-semibold" disabled={isSaving}>
                   {isSaving ? (
                     <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Saving...</>
                   ) : "Save Configuration"}
                 </Button>
               </form>
-            </CardContent>
-          </Card>
-
-          {/* Allowed Sports Feeds */}
-          <Card className="shadow-sm border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Allowed Sports Feeds</CardTitle>
-              <CardDescription className="text-sm">
-                Select which sports subscribers can opt into. Reflected live in the snippet below.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {availableSports.length > 0 ? (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    {availableSports.map((sport) => {
-                      const active = allowedSports.includes(sport.id);
-                      return (
-                        <button
-                          key={sport.id}
-                          type="button"
-                          onClick={() => toggleSport(sport.id)}
-                          className={[
-                            "flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium border transition-all duration-150 select-none",
-                            active
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground",
-                          ].join(" ")}
-                        >
-                          <span>{SPORT_EMOJI[sport.id] || "🏆"}</span>
-                          {sport.label}
-                          {active && (
-                            <span className="ml-0.5 text-primary-foreground/70 text-xs">✓</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {allowedSports.length === 0 && (
-                    <p className="text-xs text-destructive mt-3 flex items-center gap-1.5">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      Select at least one sport feed for the widget to work.
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-3">
-                    Active:{" "}
-                    <code className="font-mono bg-muted px-1.5 py-0.5 rounded">
-                      {allowedSports.length > 0 ? allowedSports.join(", ") : "none"}
-                    </code>
-                  </p>
-                </>
-              ) : (
-                <div className="py-4 px-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-800">
-                  <div className="flex items-center gap-2 font-semibold text-sm mb-1">
-                    <AlertCircle className="h-4 w-4" />
-                    No Active Sports Found
-                  </div>
-                  <p className="text-xs leading-relaxed">
-                    You haven't activated any sports yet. Go to the <strong>Settings</strong> page to configure and enable at least one sport feed (Football, NBA, Rugby, etc.) before you can use the widget.
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
@@ -627,8 +572,6 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
               <WidgetPreview
                 config={formData}
                 tenant={selectedTenant}
-                allowedSports={allowedSports}
-                availableSports={availableSports}
               />
             )}
           </div>
@@ -683,7 +626,7 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
             {"\n  "}
             <span className="text-green-400">data-sports</span>
             <span className="text-zinc-300">=</span>
-            <span className="text-amber-300">{`"${sportsParam}"`}</span>
+            <span className="text-amber-300">{`"${formData.allowed_sports.join(",")}"`}</span>
             {"\n  "}
             <span className="text-violet-400">defer</span>
             <span className="text-sky-400">&gt;&lt;/script&gt;</span>

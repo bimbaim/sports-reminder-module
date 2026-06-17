@@ -35,8 +35,9 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
     return { success: false, error: "Konfigurasi olahraga tidak ditemukan." };
   }
 
-  const { sport_name, api_url, api_key, have_leagues, sport_slug } = setting;
+  const { sport_name, api_url, api_key, have_leagues, sport_slug, sport_category } = setting;
   const targetKey = sport_slug;
+  const dynamicSportCategory = sport_category || targetKey;
 
   console.log(`Konfigurasi Ditemukan! Sport: ${sport_name}, URL: ${api_url}, Detected Type: ${targetKey}`);
 
@@ -62,7 +63,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
 
     // --- FIFA WORLD CUP 2026 SYNC ---
     if (targetKey === "fifa-world-cup-2026") {
-      const wcService = new WorldCupSyncService(supabase, api_key, api_url);
+      const wcService = new WorldCupSyncService(supabase, api_key, api_url, dynamicSportCategory);
       const processedCount = await wcService.syncAllStages();
       
       await supabase.from("sport_settings").update({ last_synced_at: new Date().toISOString() }).eq("id", sportId);
@@ -113,6 +114,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
           return {
             id: String(item.id || item.fixture?.id),
             league_id: item.leagueId,
+            sport_category: dynamicSportCategory,
             competitor_a: item.home?.name || item.teams?.home?.name || null,
             competitor_b: item.away?.name || item.teams?.away?.name || null,
             event_title: item.tournament?.stage || item.league?.round || null,
@@ -154,6 +156,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
         const mappedMatches = allEvents.map((item: any) => ({
           id: String(item.id),
           league_id: leagueId,
+          sport_category: dynamicSportCategory,
           competitor_a: item.competitors?.find((c: any) => c.isHome)?.displayName || "Home",
           competitor_b: item.competitors?.find((c: any) => !c.isHome)?.displayName || "Away",
           event_title: item.status?.detail || "NBA Regular Season",
@@ -186,6 +189,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
         const mapped = events.map((item: any) => ({
           id: String(item.id),
           league_id: leagueId,
+          sport_category: dynamicSportCategory,
           competitor_a: item.homeTeam?.name || "Home",
           competitor_b: item.awayTeam?.name || "Away",
           event_title: item.tournament?.name || "NRL Premiership",
@@ -216,6 +220,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       const mapped = events.map((item: any) => ({
         id: String(item.id),
         league_id: leagueId,
+        sport_category: dynamicSportCategory,
         competitor_a: item.teams?.home?.name || "TBD",
         competitor_b: item.teams?.away?.name || "TBD",
         event_title: item.league?.round || "UFC Event",
@@ -245,6 +250,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
       const mapped = races.map((item: any) => ({
         id: String(item.id || Math.random()),
         league_id: competitionId,
+        sport_category: dynamicSportCategory,
         competitor_a: null,
         competitor_b: null,
         event_title: item.competition?.location?.city ? `${item.competition.name} - ${item.competition.location.city}` : item.competition?.name,
@@ -297,6 +303,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
           matchesToUpsert.push({
             id: String(item.id || item.fixture?.id || Math.random()),
             league_id: null,
+            sport_category: dynamicSportCategory,
             competitor_a: item.home_team_name || item.teams?.home?.name || null,
             competitor_b: item.away_team_name || item.teams?.away?.name || null,
             kickoff_time: item.fixture?.date || item.status?.utcTime || new Date().toISOString(),
@@ -314,6 +321,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
             matchesToUpsert.push({
               id: String(item.id || item.fixture?.id || Math.random()),
               league_id: league.id,
+              sport_category: dynamicSportCategory,
               competitor_a: item.home_team_name || item.teams?.home?.name || null,
               competitor_b: item.away_team_name || item.teams?.away?.name || null,
               kickoff_time: item.fixture?.date || item.status?.utcTime || new Date().toISOString(),

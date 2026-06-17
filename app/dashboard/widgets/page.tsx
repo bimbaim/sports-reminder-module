@@ -15,27 +15,18 @@ async function WidgetsData() {
 
   if (tenantsError) console.error("WidgetsData: Error fetching tenants:", tenantsError);
 
-  // 2. Fetch ALL sports to debug status
-  const { data: allSports, error: sportsError } = await supabase
-    .from("sport_settings")
+  // 2. Fetch ALL sport categories
+  const { data: categories, error: sportsError } = await supabase
+    .from("sport_categories")
     .select("*")
-    .order("sport_name", { ascending: true });
+    .order("name", { ascending: true });
 
-  if (sportsError) console.error("WidgetsData: Error fetching sports:", sportsError);
+  if (sportsError) console.error("WidgetsData: Error fetching categories:", sportsError);
   
-  console.log("WidgetsData Debug: All rows from DB:", JSON.stringify(allSports?.slice(0, 3), null, 2));
-
-  const sports = (allSports || []).filter(s => {
-    const isActive = Boolean(s.is_active);
-    console.log(`Checking sport: ${s.sport_name}, is_active: ${s.is_active}, evaluated as: ${isActive}`);
-    return isActive;
-  });
-
-  const mappedSports = sports.map((s) => ({
-    id: s.sport_slug || s.id,
-    label: s.sport_name,
+  const mappedSports = (categories || []).map((s) => ({
+    id: s.slug,
+    label: s.name,
     have_leagues: s.have_leagues,
-    realId: s.id // Keep the real UUID for reference if needed
   }));
 
   return <WidgetStudio tenants={tenants || []} availableSports={mappedSports} />;

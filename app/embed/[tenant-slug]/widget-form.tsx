@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { subscribeToTenant, getTeamsForLeagues } from "./actions";
+import { subscribeToTenant, getTeamsForLeagues, getEventsForSport } from "./actions";
 import { cn } from "@/lib/utils";
-import { LayoutTemplate, X } from "lucide-react";
+import { LayoutTemplate, X, Loader2 } from "lucide-react";
 
 type Tenant = {
   id: string;
@@ -23,6 +23,14 @@ type SportSetting = {
   have_leagues: boolean;
 };
 
+type MatchItem = {
+  id: string;
+  home_team: string;
+  away_team: string;
+  tournament_name: string;
+  kickoff_time: string;
+};
+
 type LeagueItem = {
   id: number;
   name: string;
@@ -38,10 +46,11 @@ type WidgetFormProps = {
 
 const SPORT_EMOJI: Record<string, string> = {
   football: "⚽",
-  ufc: "🥊",
-  nba: "🏀",
-  f1: "🏎️",
-  nrl: "🏉",
+  basketball: "🏀",
+  rugby: "🏉",
+  tennis: "🎾",
+  mma: "🥊",
+  motorsports: "🏎️",
   "fifa-world-cup-2026": "🏆",
 };
 
@@ -65,59 +74,77 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
   const [isConsented, setIsConsented] = useState(false);
   const [consentError, setConsentError] = useState("");
 
-  // Step 1: Sports state
-  const [selectedSports, setSelectedSports] = useState<string[]>(
-    allowedSports.length === 1 ? [allowedSports[0].sport_slug] : []
-  );
+  // Step 1: Sport state
+  const [selectedSport, setSelectedSport] = useState<string>("");
+  const selectedSportData = allowedSports.find(s => s.sport_slug === selectedSport);
 
-  // Step 2: Leagues state
-  const [selectedLeagues, setSelectedLeagues] = useState<number[]>([]);
+  // Step 2: League Selection
+  const [selectedLeague, setSelectedLeague] = useState<string>("");
+  const [availableLeagues, setAvailableLeagues] = useState<LeagueItem[]>([]);
+  const [loadingLeagues, setLoadingLeagues] = useState(false);
 
-  // Step 3: Teams state (loaded dynamically based on selected leagues)
-  const [availableTeams, setAvailableTeams] = useState<string[]>([]);
-  const [loadingTeams, setLoadingTeams] = useState(false);
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
-  const [teamSearch, setTeamSearch] = useState("");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // Step 3: Club/Event Selection
+  const [selectedClub, setSelectedClub] = useState<string>("");
+  const [availableClubs, setAvailableClubs] = useState<string[]>([]);
+  const [availableEvents, setAvailableEvents] = useState<MatchItem[]>([]);
+  const [loadingStage3, setLoadingStage3] = useState(false);
 
-  // Filter leagues based on selected sports
-  const filteredLeagues = leagues.filter(l => selectedSports.includes(l.sport_category));
-
-  // Determine if we should show the league selector
-  // Show if any of the selected sports have have_leagues = true
-  const showLeagueSelector = allowedSports
-    .filter(s => selectedSports.includes(s.sport_slug))
-    .some(s => s.have_leagues);
-
-  // Fetch unique teams when selected leagues change
+  // Effect for Stage 2 (Leagues)
   useEffect(() => {
-    setTeamSearch("");
-    setIsDropdownOpen(false);
-
-    // If we have selected sports that DON'T have leagues, we might want to fetch teams for those sports directly?
-    // For now, let's stick to the leagues-based team fetching.
-    
-    if (selectedLeagues.length === 0) {
-      setAvailableTeams([]);
-      setSelectedTeams([]);
+    if (!selectedSport) {
+      setAvailableLeagues([]);
+      setSelectedLeague("");
       return;
     }
 
-    const loadTeams = async () => {
-      setLoadingTeams(true);
-      try {
-        const teams = await getTeamsForLeagues(selectedLeagues);
-        setAvailableTeams(teams);
-        setSelectedTeams((prev) => prev.filter((t) => teams.includes(t)));
-      } catch (err) {
-        console.error("Failed to load teams:", err);
-      } finally {
-        setLoadingTeams(false);
-      }
+    const fetchLeagues = async () => {
+      setLoadingLeagues(true);
+      // Filter local leagues from props
+      const filtered = leagues.filter(l => l.sport_category === selectedSport);
+      setAvailableLeagues(filtered);
+      setLoadingLeagues(false);
+      
+      // If we switched sports, reset league
+      setSelectedLeague("");
     };
 
-    loadTeams();
-  }, [selectedLeagues]);
+    fetchLeagues();
+  }, [selectedSport, leagues]);
+
+  // Effect for Stage 3 (Clubs or Events)
+  useEffect(() => {
+    if (!selectedLeague && selectedSportData?.have_leagues) {
+      setAvailableClubs([]);
+      setAvailableEvents([]);
+      setSelectedClub("");
+      return;
+    }
+
+    const fetchData = async () => {
+      setLoadingStage3(true);
+      
+      if (selectedSportData?.have_leagues) {
+        // Fetch teams/clubs for specific league
+        try {
+          const teams = await getTeamsForLeagues([parseInt(selectedLeague)]);
+          setAvailableClubs(teams);
+          setAvailableEvents([]);
+        } catch (err) {
+          console.error("Failed to load clubs:", err);
+        }
+      } else if (selectedSport) {
+        // Standalone sport - fetch events directly
+        const events = await getEventsForSport(selectedSport);
+        setAvailableEvents(events);
+        setAvailableClubs([]);
+      }
+      
+      setLoadingStage3(false);
+      setSelectedClub("");
+    };
+
+    fetchData();
+  }, [selectedLeague, selectedSport, selectedSportData]);
 
   const validateEmail = (v: string) => {
     if (!v) return "Email is required.";
@@ -129,35 +156,6 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
     if (!v) return "WhatsApp number is required.";
     if (!/^\+?[0-9\s\-]{7,20}$/.test(v)) return "Enter a valid phone number (e.g. +62 812 3456 7890).";
     return "";
-  };
-
-  const toggleSport = (slug: string) => {
-    setSelectedSports((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
-    );
-    // Clear leagues that are no longer in selected sports
-    setSelectedLeagues(prev => prev.filter(lId => {
-      const l = leagues.find(item => item.id === lId);
-      return l && (selectedSports.includes(slug) ? l.sport_category !== slug : true); 
-    }));
-  };
-
-  const toggleLeague = (id: number) => {
-    setSelectedLeagues((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleAddTeam = (team: string) => {
-    if (!selectedTeams.includes(team)) {
-      setSelectedTeams([...selectedTeams, team]);
-    }
-    setTeamSearch("");
-    setIsDropdownOpen(false);
-  };
-
-  const handleRemoveTeam = (team: string) => {
-    setSelectedTeams(selectedTeams.filter((t) => t !== team));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -178,13 +176,19 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
       setConsentError("");
     }
 
-    if (selectedSports.length === 0) {
-      setMessage({ text: "Please select at least one sport.", type: "error" });
+    if (!selectedSport) {
+      setMessage({ text: "Please select a sport.", type: "error" });
       hasError = true;
     }
 
-    if (showLeagueSelector && selectedLeagues.length === 0) {
-      setMessage({ text: "Please select at least one league to follow.", type: "error" });
+    if (selectedSportData?.have_leagues && !selectedLeague) {
+      setMessage({ text: "Please select a league.", type: "error" });
+      hasError = true;
+    }
+
+    if (!selectedClub) {
+      const label = selectedSportData?.have_leagues ? "club" : "event";
+      setMessage({ text: `Please select a ${label}.`, type: "error" });
       hasError = true;
     }
 
@@ -197,8 +201,14 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
     fd.append("email", email);
     fd.append("whatsapp_number", whatsapp);
     fd.append("is_consented", isConsented ? "true" : "false");
-    selectedSports.forEach((sport) => fd.append("favorite_sports", sport));
-    fd.append("favorite_teams", selectedTeams.join(","));
+    fd.append("favorite_sports", selectedSport);
+    
+    if (selectedSportData?.have_leagues) {
+      fd.append("favorite_leagues", selectedLeague);
+      fd.append("favorite_teams", selectedClub);
+    } else {
+      fd.append("favorite_events", selectedClub);
+    }
 
     const result = await subscribeToTenant(tenant.id, fd);
 
@@ -208,19 +218,13 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
       setEmail("");
       setWhatsapp("");
       setIsConsented(false);
-      setSelectedSports(allowedSports.length === 1 ? [allowedSports[0].sport_slug] : []);
-      setSelectedLeagues([]);
-      setSelectedTeams([]);
+      setSelectedSport("");
+      setSelectedLeague("");
+      setSelectedClub("");
     } else {
       setMessage({ text: result.error || "An error occurred.", type: "error" });
     }
   };
-
-  const filteredTeams = availableTeams.filter(
-    (t) =>
-      t.toLowerCase().includes(teamSearch.toLowerCase()) &&
-      !selectedTeams.includes(t)
-  );
 
   const isSticky = layoutVariant === "sticky";
 
@@ -323,134 +327,92 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
 
             <div className="h-px bg-slate-100 my-2" />
 
-            {/* Sport Selector (New Step) */}
-            {allowedSports.length > 1 && (
-              <div className="space-y-2.5">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Favorite Sports <span className="text-red-500">*</span>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {allowedSports.map((sport) => {
-                    const isActive = selectedSports.includes(sport.sport_slug);
-                    return (
-                      <button
-                        key={sport.sport_slug}
-                        type="button"
-                        onClick={() => toggleSport(sport.sport_slug)}
-                        className={[
-                          "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-all",
-                          isActive 
-                            ? "text-white border-transparent" 
-                            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                        ].join(" ")}
-                        style={isActive ? { backgroundColor: primary } : {}}
-                      >
-                        <span>{SPORT_EMOJI[sport.sport_slug] || "🏆"}</span>
-                        {sport.sport_name}
-                        {isActive && <span className="ml-1 text-[10px]">✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* Stage 1: Sport Category (Dropdown) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Cabang Olahraga <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={selectedSport}
+                onChange={(e) => setSelectedSport(e.target.value)}
+                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 focus:ring-2 focus:ring-slate-100"
+                style={{ "--tw-ring-color": primary + "33" } as React.CSSProperties}
+              >
+                <option value="">Pilih Olahraga...</option>
+                {allowedSports.map((sport) => (
+                  <option key={sport.sport_slug} value={sport.sport_slug}>
+                    {SPORT_EMOJI[sport.sport_slug] || "🏆"} {sport.sport_name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {/* League Selector - Only show if selected sports have leagues */}
-            {showLeagueSelector && (
-              <div className="space-y-2.5">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Select Leagues to Follow <span className="text-red-500">*</span>
-                </label>
-                <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50/50 space-y-1 scrollbar-thin">
-                  {filteredLeagues.length > 0 ? (
-                    filteredLeagues.map((league) => {
-                      const isChecked = selectedLeagues.includes(league.id);
-                      return (
-                        <button
-                          type="button"
-                          key={league.id}
-                          onClick={() => toggleLeague(league.id)}
-                          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-left text-sm hover:bg-slate-100 transition-colors"
-                        >
-                          <div
-                            className="w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all"
-                            style={{
-                              backgroundColor: isChecked ? primary : "transparent",
-                              borderColor: isChecked ? primary : "#cbd5e1",
-                            }}
-                          >
-                            {isChecked && (
-                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={3}>
-                                <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className="text-slate-700 font-medium truncate">{league.name}</span>
-                          <span className="text-[9px] text-slate-400 uppercase ml-auto font-bold">{league.sport_category}</span>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <p className="text-[11px] text-slate-400 p-2 text-center">Select a sport above to see leagues.</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Team Selector - Show only if leagues are selected or if a standalone sport is selected */}
-            {(selectedLeagues.length > 0 || (selectedSports.length > 0 && !showLeagueSelector)) && (
-              <div className="space-y-2.5">
+            {/* Stage 2: League Selection (only if sport has leagues) */}
+            {selectedSport && selectedSportData?.have_leagues && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
-                  <span>Favorite Teams</span>
-                  {loadingTeams && <span className="h-3 w-3 animate-spin rounded-full border border-slate-300 border-t-slate-600" />}
+                  <span>Pilih Liga <span className="text-red-500">*</span></span>
+                  {loadingLeagues && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
                 </label>
+                <select
+                  value={selectedLeague}
+                  onChange={(e) => setSelectedLeague(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 focus:ring-2 focus:ring-slate-100"
+                  style={{ "--tw-ring-color": primary + "33" } as React.CSSProperties}
+                  disabled={loadingLeagues}
+                >
+                  <option value="">{loadingLeagues ? "Memuat Liga..." : "Pilih Liga..."}</option>
+                  {availableLeagues.map((league) => (
+                    <option key={league.id} value={league.id.toString()}>
+                      {league.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-                {selectedTeams.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-2 bg-slate-50 p-2 border border-slate-100 rounded-lg">
-                    {selectedTeams.map((team) => (
-                      <span key={team} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold text-slate-700 bg-slate-200/70 border border-slate-300/50">
-                        {team}
-                        <button type="button" onClick={() => handleRemoveTeam(team)} className="hover:text-red-500">×</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder={loadingTeams ? "Loading teams..." : "Search teams…"}
-                    value={teamSearch}
-                    disabled={loadingTeams || (showLeagueSelector && selectedLeagues.length === 0)}
-                    onChange={(e) => { setTeamSearch(e.target.value); setIsDropdownOpen(true); }}
-                    onFocus={() => setIsDropdownOpen(true)}
-                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 placeholder:text-slate-400"
-                  />
-                  {isDropdownOpen && teamSearch.trim() && (
-                    <div className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1 scrollbar-thin">
-                      {filteredTeams.length > 0 ? (
-                        filteredTeams.map((team) => (
-                          <button
-                            type="button"
-                            key={team}
-                            onClick={() => handleAddTeam(team)}
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 text-slate-700 font-medium"
-                          >
-                            {team}
-                          </button>
-                        ))
-                      ) : (
-                        <p className="text-xs text-slate-400 px-3 py-2 text-center">No matching teams.</p>
-                      )}
-                    </div>
+            {/* Stage 3: Club or Event Selection */}
+            {selectedSport && (selectedLeague || !selectedSportData?.have_leagues) && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                  <span>{selectedSportData?.have_leagues ? "Pilih Klub Utama" : "Pilih Event"} <span className="text-red-500">*</span></span>
+                  {loadingStage3 && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+                </label>
+                
+                <select
+                  value={selectedClub}
+                  onChange={(e) => setSelectedClub(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 focus:ring-2 focus:ring-slate-100"
+                  style={{ "--tw-ring-color": primary + "33" } as React.CSSProperties}
+                  disabled={loadingStage3}
+                >
+                  <option value="">
+                    {loadingStage3 ? "Memuat Data..." : selectedSportData?.have_leagues ? "Pilih Klub..." : "Pilih Pertandingan..."}
+                  </option>
+                  
+                  {selectedSportData?.have_leagues ? (
+                    availableClubs.map((club) => (
+                      <option key={club} value={club}>
+                        {club}
+                      </option>
+                    ))
+                  ) : (
+                    availableEvents.map((event) => (
+                      <option key={event.id} value={event.id}>
+                        {event.home_team} vs {event.away_team} ({event.tournament_name})
+                      </option>
+                    ))
                   )}
-                </div>
+                </select>
               </div>
             )}
 
             {/* Status Message */}
             {message && (
-              <div className={["p-3 rounded-xl text-xs font-bold border", message.type === "success" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"].join(" ")}>
+              <div className={cn(
+                "p-3 rounded-xl text-xs font-bold border animate-in zoom-in duration-300", 
+                message.type === "success" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"
+              )}>
                 {message.text}
               </div>
             )}
@@ -462,12 +424,12 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
               className="w-full py-3 rounded-xl text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
               style={{ backgroundColor: primary }}
             >
-              {loading ? "Subscribing…" : ctaText}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : ctaText}
             </button>
           </form>
         </div>
       </div>
-      <p className="text-center text-[10px] text-slate-400 mt-4">Powered by Sports Reminder Module</p>
+      <p className="text-center text-[10px] text-slate-400 mt-4 uppercase tracking-widest font-bold opacity-70">Powered by Sports Reminder Module</p>
     </div>
   );
 

@@ -13,6 +13,7 @@ export async function updateWidgetSettings(id: string, formData: FormData) {
     font_size: formData.get("font_size")?.toString() || "14px",
     logo_url: formData.get("logo_url")?.toString() || null,
     layout_variant: formData.get("layout_variant")?.toString() || "inline",
+    allowed_sports: formData.get("allowed_sports")?.toString()?.split(",") || [],
   };
 
   const supabase = createAdminClient();
