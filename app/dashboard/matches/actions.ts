@@ -178,15 +178,15 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
         return { ...item, _parsedDate: matchTime };
       });
 
-      console.log(`Date Analysis: Min=${minDate?.toISOString()}, Max=${maxDate?.toISOString()}, Invalid=${invalidDatesCount}`);
+      const minDateStr = minDate instanceof Date ? minDate.toISOString() : "None";
+      const maxDateStr = maxDate instanceof Date ? maxDate.toISOString() : "None";
+      console.log(`Date Analysis: Min=${minDateStr}, Max=${maxDateStr}, Invalid=${invalidDatesCount}`);
       console.log(`Filter Range: ${startDate.toISOString()} TO ${endDate.toISOString()}`);
 
       let filteredMatches = parsedMatches.filter((item: any) => {
         if (!item._parsedDate) return false;
         return item._parsedDate >= startDate && item._parsedDate <= endDate;
       });
-
-      console.log(`Matches after date filtering: ${filteredMatches.length}`);
 
       console.log(`Matches after date filtering: ${filteredMatches.length}`);
 
