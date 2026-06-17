@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { subscribeToTenant, getTeamsForLeagues, getEventsForSport } from "./actions";
 import { cn } from "@/lib/utils";
-import { LayoutTemplate, X, Loader2, CheckCircle2, ChevronRight, Mail, Phone, Zap } from "lucide-react";
+import { LayoutTemplate, X, Loader2 } from "lucide-react";
 
 type Tenant = {
   id: string;
@@ -228,370 +228,208 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
 
   const isSticky = layoutVariant === "sticky";
 
-  // Helper to determine step status
-  const isEmailComplete = email && !validateEmail(email);
-  const isWhatsappComplete = whatsapp && !validateWhatsapp(whatsapp);
-  const isContactsComplete = isEmailComplete && isWhatsappComplete && isConsented;
-  const isSportComplete = !!selectedSport;
-  const isLeagueComplete = !selectedSportData?.have_leagues || !!selectedLeague;
-  const isClubComplete = !!selectedClub;
-  const isFormComplete = isContactsComplete && isSportComplete && isLeagueComplete && isClubComplete;
-
   const FormContent = (
     <div 
       className={cn(
-        "w-full max-w-xl transition-all duration-300",
+        "w-full max-w-md mx-auto transition-all duration-300",
         isSticky ? "fixed bottom-24 right-6 z-[999999] origin-bottom-right" : "relative",
         isSticky && !isOpen ? "scale-90 opacity-0 pointer-events-none translate-y-4" : "scale-100 opacity-100 translate-y-0"
       )}
       style={{ fontFamily, fontSize }}
     >
-      {/* Card Wrapper with Premium Design */}
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200/50 overflow-hidden backdrop-blur-sm">
-        
-        {/* Top Accent bar with gradient */}
-        <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative">
-          <div 
-            className="absolute h-full w-1/3"
-            style={{ 
-              background: `linear-gradient(90deg, ${primary}, ${primary}dd)`,
-              animation: 'shimmer 3s infinite'
-            }}
-          />
-        </div>
+      {/* Card Wrapper */}
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+        {/* Top Accent bar */}
+        <div className="h-1.5 w-full" style={{ backgroundColor: primary }} />
 
-        <div className="p-8 space-y-7">
-          
-          {/* ──── Header Section ──── */}
-          <div className="space-y-4">
-            <div className="flex items-start gap-4">
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-white text-xl flex-shrink-0 shadow-lg overflow-hidden border-2 border-white relative"
-                style={{ backgroundColor: primary }}
-              >
-                {logoUrl ? (
-                  <img src={logoUrl} alt={tenant.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="relative z-10">{tenant.name.charAt(0).toUpperCase()}</span>
-                )}
-                <div 
-                  className="absolute inset-0 opacity-20"
-                  style={{ backgroundColor: primary }}
-                />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-slate-900 leading-tight">{tenant.name}</h2>
-                <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
-                  <Zap className="h-3.5 w-3.5 text-amber-500" />
-                  Get match reminders via WhatsApp & Email
-                </p>
-              </div>
+        <div className="p-7">
+          {/* Header */}
+          <div className="flex items-center gap-3.5 mb-6">
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-lg flex-shrink-0 shadow-sm overflow-hidden"
+              style={{ backgroundColor: primary }}
+            >
+              {logoUrl ? (
+                <img src={logoUrl} alt={tenant.name} className="w-full h-full object-cover" />
+              ) : (
+                tenant.name.charAt(0).toUpperCase()
+              )}
             </div>
-
-            {/* Progress Indicator */}
-            <div className="flex gap-1.5 pt-2">
-              <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${isContactsComplete ? 'bg-green-500' : email && whatsapp ? 'bg-yellow-500' : 'bg-slate-200'}`} />
-              <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${isSportComplete ? 'bg-blue-500' : 'bg-slate-200'}`} />
-              <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${isFormComplete ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 leading-tight">{tenant.name}</h2>
+              <p className="text-xs text-slate-500">Get match reminders via WhatsApp & Email</p>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} noValidate className="space-y-6">
-            
-            {/* ──── Section 1: Contact Information ──── */}
-            <div className={cn(
-              "rounded-2xl border-2 p-5 space-y-4 transition-all duration-300",
-              isContactsComplete 
-                ? "border-green-300 bg-green-50/50" 
-                : "border-slate-200 bg-slate-50/30 hover:border-slate-300"
-            )}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <Mail className="h-4 w-4" style={{ color: primary }} />
-                  Contact Information
-                </h3>
-                {isContactsComplete && <CheckCircle2 className="h-4 w-4 text-green-600" />}
-              </div>
-
-              <div className="space-y-3.5">
-                {/* Email Field */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider" htmlFor="email">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
-                      onBlur={() => setEmailError(validateEmail(email))}
-                      placeholder="you@example.com"
-                      className={cn(
-                        "w-full h-11 rounded-xl border-2 px-4 text-sm outline-none transition-all bg-white font-medium",
-                        emailError 
-                          ? "border-red-400 focus:ring-2 focus:ring-red-100" 
-                          : "border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100",
-                        email && !emailError && "border-green-400"
-                      )}
-                      style={!emailError && email ? { "--tw-ring-color": primary + "20" } as React.CSSProperties : {}}
-                    />
-                    {email && !emailError && (
-                      <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
-                    )}
-                  </div>
-                  {emailError && <p className="text-xs text-red-600 font-medium">{emailError}</p>}
-                </div>
-
-                {/* WhatsApp Field */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider" htmlFor="whatsapp">
-                    WhatsApp Number <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="whatsapp"
-                      type="tel"
-                      value={whatsapp}
-                      onChange={(e) => { setWhatsapp(e.target.value); setWhatsappError(""); }}
-                      onBlur={() => setWhatsappError(validateWhatsapp(whatsapp))}
-                      placeholder="+62 812 3456 7890"
-                      className={cn(
-                        "w-full h-11 rounded-xl border-2 px-4 text-sm outline-none transition-all bg-white font-medium",
-                        whatsappError 
-                          ? "border-red-400 focus:ring-2 focus:ring-red-100" 
-                          : "border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100",
-                        whatsapp && !whatsappError && "border-green-400"
-                      )}
-                      style={!whatsappError && whatsapp ? { "--tw-ring-color": primary + "20" } as React.CSSProperties : {}}
-                    />
-                    {whatsapp && !whatsappError && (
-                      <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
-                    )}
-                  </div>
-                  {whatsappError && <p className="text-xs text-red-600 font-medium">{whatsappError}</p>}
-                </div>
-
-                {/* Consent Checkbox - Enhanced */}
-                <div className="space-y-1.5 pt-2">
-                  <label className={cn(
-                    "flex items-start gap-3 cursor-pointer p-3 rounded-lg transition-all",
-                    isConsented ? "bg-green-50 border border-green-200" : "hover:bg-slate-100 border border-transparent"
-                  )}>
-                    <input
-                      type="checkbox"
-                      checked={isConsented}
-                      onChange={(e) => {
-                        setIsConsented(e.target.checked);
-                        setConsentError("");
-                      }}
-                      className="mt-1 w-4 h-4 rounded border-slate-300 transition-colors focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                      style={{ accentColor: primary }}
-                    />
-                    <span className="text-xs font-medium text-slate-600 leading-tight flex-1">
-                      I agree to receive WhatsApp notifications related to upcoming sports matches.
-                    </span>
-                    {isConsented && <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />}
-                  </label>
-                  {consentError && <p className="text-xs text-red-600 font-medium px-3">{consentError}</p>}
-                </div>
-              </div>
-            </div>
-
-            {/* ──── Section 2: Sport Selection ──── */}
-            <div className={cn(
-              "rounded-2xl border-2 p-5 space-y-4 transition-all duration-300",
-              isSportComplete 
-                ? "border-blue-300 bg-blue-50/50" 
-                : "border-slate-200 bg-slate-50/30 hover:border-slate-300"
-            )}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <span className="text-lg">🏆</span>
-                  Sport Selection
-                </h3>
-                {isSportComplete && <CheckCircle2 className="h-4 w-4 text-blue-600" />}
+          <form onSubmit={handleSubmit} noValidate className="space-y-5">
+            {/* Email & WhatsApp Fields */}
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider" htmlFor="email">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+                  onBlur={() => setEmailError(validateEmail(email))}
+                  placeholder="you@example.com"
+                  className={[
+                    "w-full h-10 rounded-lg border px-3 text-sm outline-none transition-all bg-slate-50",
+                    emailError ? "border-red-400 focus:ring-2 focus:ring-red-200" : "border-slate-200 focus:ring-2 focus:ring-slate-100",
+                  ].join(" ")}
+                  style={!emailError ? { "--tw-ring-color": primary + "33" } as React.CSSProperties : {}}
+                />
+                {emailError && <p className="text-xs text-red-500">{emailError}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Cabang Olahragas <span className="text-red-500">*</span>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider" htmlFor="whatsapp">
+                  WhatsApp Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="whatsapp"
+                  type="tel"
+                  value={whatsapp}
+                  onChange={(e) => { setWhatsapp(e.target.value); setWhatsappError(""); }}
+                  onBlur={() => setWhatsappError(validateWhatsapp(whatsapp))}
+                  placeholder="+62 812 3456 7890"
+                  className={[
+                    "w-full h-10 rounded-lg border px-3 text-sm outline-none transition-all bg-slate-50",
+                    whatsappError ? "border-red-400 focus:ring-2 focus:ring-red-200" : "border-slate-200 focus:ring-2 focus:ring-slate-100",
+                  ].join(" ")}
+                  style={!whatsappError ? { "--tw-ring-color": primary + "33" } as React.CSSProperties : {}}
+                />
+                {whatsappError && <p className="text-xs text-red-500">{whatsappError}</p>}
+              </div>
+            </div>
+
+            {/* Consent Checkbox */}
+            <div className="space-y-1.5">
+              <label className="flex items-start gap-2.5 cursor-pointer py-1">
+                <input
+                  type="checkbox"
+                  checked={isConsented}
+                  onChange={(e) => {
+                    setIsConsented(e.target.checked);
+                    setConsentError("");
+                  }}
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 transition-colors focus:ring-0 focus:ring-offset-0"
+                  style={{ accentColor: primary }}
+                />
+                <span className="text-xs font-medium text-slate-600 leading-tight">
+                  I agree to receive WhatsApp notifications related to upcoming sports matches.
+                </span>
+              </label>
+              {consentError && <p className="text-xs text-red-500">{consentError}</p>}
+            </div>
+
+            <div className="h-px bg-slate-100 my-2" />
+
+            {/* Stage 1: Sport Category (Dropdown) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Cabang Olahragas <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={selectedSport}
+                onChange={(e) => setSelectedSport(e.target.value)}
+                className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 focus:ring-2 focus:ring-slate-100"
+                style={{ "--tw-ring-color": primary + "33" } as React.CSSProperties}
+              >
+                <option value="">Pilih Olahraga...</option>
+                {allowedSports.map((sport) => (
+                  <option key={sport.sport_slug} value={sport.sport_slug}>
+                    {SPORT_EMOJI[sport.sport_slug] || "🏆"} {sport.sport_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Stage 2: League Selection (only if sport has leagues) */}
+            {selectedSport && selectedSportData?.have_leagues && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                  <span>Pilih Liga <span className="text-red-500">*</span></span>
+                  {loadingLeagues && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
                 </label>
                 <select
-                  value={selectedSport}
-                  onChange={(e) => setSelectedSport(e.target.value)}
-                  className={cn(
-                    "w-full h-11 rounded-xl border-2 px-4 text-sm outline-none bg-white transition-all font-medium",
-                    isSportComplete
-                      ? "border-blue-400 bg-blue-50/30"
-                      : "border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                  )}
-                  style={isSportComplete ? {} : { "--tw-ring-color": primary + "20" } as React.CSSProperties}
+                  value={selectedLeague}
+                  onChange={(e) => setSelectedLeague(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 focus:ring-2 focus:ring-slate-100"
+                  style={{ "--tw-ring-color": primary + "33" } as React.CSSProperties}
+                  disabled={loadingLeagues}
                 >
-                  <option value="">Pilih Olahraga...</option>
-                  {allowedSports.map((sport) => (
-                    <option key={sport.sport_slug} value={sport.sport_slug}>
-                      {SPORT_EMOJI[sport.sport_slug] || "🏆"} {sport.sport_name}
+                  <option value="">{loadingLeagues ? "Memuat Liga..." : "Pilih Liga..."}</option>
+                  {availableLeagues.map((league) => (
+                    <option key={league.id} value={league.id.toString()}>
+                      {league.name}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
-
-            {/* ──── Section 3: League Selection ──── */}
-            {selectedSport && selectedSportData?.have_leagues && (
-              <div className="animate-in fade-in slide-in-from-top-3 duration-300">
-                <div className={cn(
-                  "rounded-2xl border-2 p-5 space-y-4 transition-all duration-300",
-                  isLeagueComplete
-                    ? "border-purple-300 bg-purple-50/50"
-                    : "border-slate-200 bg-slate-50/30 hover:border-slate-300"
-                )}>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                      <span className="text-lg">🛡️</span>
-                      League Selection
-                    </h3>
-                    {isLeagueComplete && <CheckCircle2 className="h-4 w-4 text-purple-600" />}
-                    {loadingLeagues && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Pilih Liga <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={selectedLeague}
-                      onChange={(e) => setSelectedLeague(e.target.value)}
-                      className={cn(
-                        "w-full h-11 rounded-xl border-2 px-4 text-sm outline-none bg-white transition-all font-medium",
-                        isLeagueComplete
-                          ? "border-purple-400 bg-purple-50/30"
-                          : "border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100",
-                        loadingLeagues && "opacity-60 cursor-not-allowed"
-                      )}
-                      disabled={loadingLeagues}
-                      style={isLeagueComplete ? {} : { "--tw-ring-color": primary + "20" } as React.CSSProperties}
-                    >
-                      <option value="">{loadingLeagues ? "Memuat Liga..." : "Pilih Liga..."}</option>
-                      {availableLeagues.map((league) => (
-                        <option key={league.id} value={league.id.toString()}>
-                          {league.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
             )}
 
-            {/* ──── Section 4: Club/Event Selection ──── */}
+            {/* Stage 3: Club or Event Selection */}
             {selectedSport && (selectedLeague || !selectedSportData?.have_leagues) && (
-              <div className="animate-in fade-in slide-in-from-top-3 duration-300">
-                <div className={cn(
-                  "rounded-2xl border-2 p-5 space-y-4 transition-all duration-300",
-                  isClubComplete
-                    ? "border-emerald-300 bg-emerald-50/50"
-                    : "border-slate-200 bg-slate-50/30 hover:border-slate-300"
-                )}>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                      <span className="text-lg">👥</span>
-                      {selectedSportData?.have_leagues ? "Team Selection" : "Match Selection"}
-                    </h3>
-                    {isClubComplete && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                    {loadingStage3 && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      {selectedSportData?.have_leagues ? "Pilih Klub Utama" : "Pilih Event"} <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={selectedClub}
-                      onChange={(e) => setSelectedClub(e.target.value)}
-                      className={cn(
-                        "w-full h-11 rounded-xl border-2 px-4 text-sm outline-none bg-white transition-all font-medium",
-                        isClubComplete
-                          ? "border-emerald-400 bg-emerald-50/30"
-                          : "border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100",
-                        loadingStage3 && "opacity-60 cursor-not-allowed"
-                      )}
-                      disabled={loadingStage3}
-                      style={isClubComplete ? {} : { "--tw-ring-color": primary + "20" } as React.CSSProperties}
-                    >
-                      <option value="">
-                        {loadingStage3 ? "Memuat Data..." : selectedSportData?.have_leagues ? "Pilih Klub..." : "Pilih Pertandingan..."}
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                  <span>{selectedSportData?.have_leagues ? "Pilih Klub Utama" : "Pilih Event"} <span className="text-red-500">*</span></span>
+                  {loadingStage3 && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+                </label>
+                
+                <select
+                  value={selectedClub}
+                  onChange={(e) => setSelectedClub(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none bg-slate-50 focus:ring-2 focus:ring-slate-100"
+                  style={{ "--tw-ring-color": primary + "33" } as React.CSSProperties}
+                  disabled={loadingStage3}
+                >
+                  <option value="">
+                    {loadingStage3 ? "Memuat Data..." : selectedSportData?.have_leagues ? "Pilih Klub..." : "Pilih Pertandingan..."}
+                  </option>
+                  
+                  {selectedSportData?.have_leagues ? (
+                    availableClubs.map((club) => (
+                      <option key={club} value={club}>
+                        {club}
                       </option>
-                      
-                      {selectedSportData?.have_leagues ? (
-                        availableClubs.map((club) => (
-                          <option key={club} value={club}>
-                            {club}
-                          </option>
-                        ))
-                      ) : (
-                        availableEvents.map((event) => (
-                          <option key={event.id} value={event.id}>
-                            {event.home_team} vs {event.away_team} ({event.tournament_name})
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-                </div>
+                    ))
+                  ) : (
+                    availableEvents.map((event) => (
+                      <option key={event.id} value={event.id}>
+                        {event.home_team} vs {event.away_team} ({event.tournament_name})
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
             )}
 
-            {/* Status Message - Enhanced */}
+            {/* Status Message */}
             {message && (
               <div className={cn(
-                "p-4 rounded-xl text-sm font-bold border-2 animate-in zoom-in duration-300 flex items-start gap-3", 
-                message.type === "success" 
-                  ? "bg-green-50 text-green-800 border-green-300" 
-                  : "bg-red-50 text-red-800 border-red-300"
+                "p-3 rounded-xl text-xs font-bold border animate-in zoom-in duration-300", 
+                message.type === "success" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"
               )}>
-                {message.type === "success" ? (
-                  <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                ) : (
-                  <span className="text-lg flex-shrink-0">⚠️</span>
-                )}
-                <span>{message.text}</span>
+                {message.text}
               </div>
             )}
 
-            {/* Submit Button - Enhanced */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className={cn(
-                "w-full py-3 rounded-xl text-sm font-bold text-white shadow-lg transition-all duration-200",
-                "hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]",
-                "disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100",
-                loading && "flex items-center justify-center gap-2"
-              )}
+              className="w-full py-3 rounded-xl text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
               style={{ backgroundColor: primary }}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Subscribing...</span>
-                </>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  {ctaText}
-                  {!loading && <ChevronRight className="h-4 w-4" />}
-                </span>
-              )}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : ctaText}
             </button>
           </form>
         </div>
       </div>
-
-      {/* Footer */}
-      <p className="text-center text-[10px] text-slate-400 mt-5 uppercase tracking-widest font-bold opacity-70">
-        ✨ Powered by Sports Reminder Module
-      </p>
+      <p className="text-center text-[10px] text-slate-400 mt-4 uppercase tracking-widest font-bold opacity-70">Powered by Sports Reminder Module</p>
     </div>
   );
 
@@ -602,30 +440,15 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
       {isSticky && (
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className={cn(
-            "fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-2xl flex items-center justify-center text-white transition-all",
-            "hover:scale-125 active:scale-95 z-[999999] animate-in fade-in zoom-in duration-300",
-            "border-4 border-white"
-          )}
-          style={{ 
-            backgroundColor: primary,
-            boxShadow: `0 0 30px ${primary}40`
-          }}
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 z-[999999] animate-in fade-in zoom-in duration-300"
+          style={{ backgroundColor: primary }}
         >
           {isOpen ? (
-            <X className="h-7 w-7" />
+            <X className="h-6 w-6" />
           ) : (
-            <LayoutTemplate className="h-7 w-7" />
+            <LayoutTemplate className="h-6 w-6" />
           )}
         </button>
-      )}
-
-      {/* Ambient glow effect for sticky button */}
-      {isSticky && !isOpen && (
-        <div 
-          className="fixed bottom-6 right-6 h-16 w-16 rounded-full blur-2xl opacity-30 animate-pulse z-[999998]"
-          style={{ backgroundColor: primary }}
-        />
       )}
     </>
   );
