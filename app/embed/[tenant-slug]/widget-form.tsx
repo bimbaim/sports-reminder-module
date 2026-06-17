@@ -228,7 +228,7 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
     <div 
       className={cn(
         "w-full max-w-md mx-auto transition-all duration-300",
-        isSticky ? "fixed bottom-24 right-6 z-[60] origin-bottom-right" : "relative",
+        isSticky ? "fixed bottom-24 right-6 z-[999999] origin-bottom-right" : "relative",
         isSticky && !isOpen ? "scale-90 opacity-0 pointer-events-none translate-y-4" : "scale-100 opacity-100 translate-y-0"
       )}
       style={{ fontFamily, fontSize }}
@@ -478,7 +478,7 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
       {isSticky && (
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 z-[70] animate-in fade-in zoom-in duration-300"
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 z-[999999] animate-in fade-in zoom-in duration-300"
           style={{ backgroundColor: primary }}
         >
           {isOpen ? (

@@ -314,7 +314,7 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://yourdomain.com";
   const sportsParam = allowedSports.join(",");
 
-  const scriptSnippet = `<script src="${baseUrl}/widget.js" data-token="${selectedTenant?.public_token || ""}" data-sports="${sportsParam}" defer></script>`;
+  const scriptSnippet = `<script src="${baseUrl}/widget.js" data-token="${selectedTenant?.public_token || ""}" data-layout="${formData.layout_variant}" data-sports="${sportsParam}" defer></script>`;
 
   const copySnippet = async () => {
     await navigator.clipboard.writeText(scriptSnippet);
@@ -676,6 +676,10 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
             <span className="text-green-400">data-token</span>
             <span className="text-zinc-300">=</span>
             <span className="text-amber-300">{`"${selectedTenant?.public_token || ""}"`}</span>
+            {"\n  "}
+            <span className="text-green-400">data-layout</span>
+            <span className="text-zinc-300">=</span>
+            <span className="text-amber-300">{`"${formData.layout_variant}"`}</span>
             {"\n  "}
             <span className="text-green-400">data-sports</span>
             <span className="text-zinc-300">=</span>

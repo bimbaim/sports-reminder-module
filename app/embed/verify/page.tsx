@@ -24,7 +24,7 @@ async function VerifyContent({ searchParams }: { searchParams: Promise<{ token?:
 
   if (!tenant) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-transparent">
         <div className="bg-white rounded-2xl shadow-md border border-red-200 p-6 max-w-sm text-center">
           <p className="text-red-600 font-bold text-sm">Invalid Widget Token</p>
           <p className="text-slate-500 text-xs mt-1">
@@ -66,7 +66,7 @@ async function VerifyContent({ searchParams }: { searchParams: Promise<{ token?:
     .order("name", { ascending: true });
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-transparent">
       <WidgetForm
         tenant={tenant}
         allowedSports={allowedSports}
@@ -80,7 +80,7 @@ export default function VerifyEmbedPage({ searchParams }: PageProps) {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-transparent">
           <div className="flex flex-col items-center gap-2">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
             <p className="text-xs font-medium text-slate-400">Loading widget...</p>

@@ -20,6 +20,7 @@
       var token = script.getAttribute("data-token");
       var tenant = script.getAttribute("data-tenant");
       var sports = script.getAttribute("data-sports") || "";
+      var layout = script.getAttribute("data-layout") || "inline";
 
       if (!token && !tenant) {
         console.warn("[SportsReminder] Missing both data-token and data-tenant on script element.", script);
@@ -61,28 +62,44 @@
       var uniqueSuffix = Math.random().toString(36).substring(2, 9);
       iframe.id = "sports-reminder-iframe-" + identifier + "-" + uniqueSuffix;
       iframe.src = src;
-      iframe.width = "100%";
-      iframe.height = "650";
-      iframe.setAttribute("style", "border:none;width:100%;max-width:100%;display:block;min-height:650px;");
       iframe.setAttribute("allow", "clipboard-write");
       iframe.setAttribute("loading", "lazy");
       iframe.setAttribute("title", "Sports Reminder Widget");
+      iframe.setAttribute("allowtransparency", "true");
+
+      var style = "border:none;display:block;";
+      if (layout === "sticky") {
+        style += "position:fixed;bottom:0;right:0;z-index:999999;width:450px;height:800px;background:transparent;";
+      } else {
+        style += "width:100%;max-width:100%;min-height:650px;height:650px;";
+      }
+      iframe.setAttribute("style", style);
 
       // Injeksi iframe ke DOM dengan aman
       var parent = script.parentNode;
       
-      // Jika script diletakkan di HEAD, HTML, atau parent tidak valid, append ke BODY sebagai fallback
-      if (parent && parent.tagName !== "HEAD" && parent.tagName !== "HTML") {
-        parent.insertBefore(iframe, script.nextSibling);
-      } else {
-        console.warn("[SportsReminder] Script tag is in <head> or has no valid body parent. Appending to body instead.");
+      // Jika sticky, selalu append ke body untuk menghindari overflow:hidden dari parent (misal footer WP)
+      if (layout === "sticky") {
         if (document.body) {
           document.body.appendChild(iframe);
         } else {
-          // Jika document.body belum siap sama sekali
           window.addEventListener("load", function () {
             document.body.appendChild(iframe);
           });
+        }
+      } else {
+        // Logika inline: diletakkan di posisi script atau body fallback
+        if (parent && parent.tagName !== "HEAD" && parent.tagName !== "HTML") {
+          parent.insertBefore(iframe, script.nextSibling);
+        } else {
+          console.warn("[SportsReminder] Script tag is in <head> or has no valid body parent. Appending to body instead.");
+          if (document.body) {
+            document.body.appendChild(iframe);
+          } else {
+            window.addEventListener("load", function () {
+              document.body.appendChild(iframe);
+            });
+          }
         }
       }
     });
