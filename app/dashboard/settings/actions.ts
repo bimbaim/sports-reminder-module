@@ -137,11 +137,15 @@ export async function syncSportData(id: string) {
     const json = await response.json();
     let leagues: any[] = [];
 
-    // FIX UTAMA: Ekstrak data dari json.response.popular sesuai dengan struktur API Anda
-    if (isFreeLiveFootballApi && json.response?.popular) {
+    // Support various response structures for leagues
+    if (json.data && Array.isArray(json.data)) {
+      leagues = json.data;
+    } else if (json.response?.popular) {
       leagues = json.response.popular;
     } else if (json.response) {
       leagues = Array.isArray(json.response) ? json.response : (json.response.list || []);
+    } else if (Array.isArray(json)) {
+      leagues = json;
     }
 
     if (leagues.length === 0) {

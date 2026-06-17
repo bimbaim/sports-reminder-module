@@ -78,52 +78,156 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
     // --- FOOTBALL SYNC ---
     if (targetKey === "football") {
       console.log("=== EXECUTING DEDICATED FOOTBALL SYNC ===");
-      const footballLeagues = [47, 77]; // Premier League, World Cup
+      
+      // Attempt to fetch CURRENT popular leagues instead of using hardcoded historical IDs
+      let footballLeagues = [42, 47, 53, 54, 55, 73, 77, 87, 132, 138];
+      try {
+        const popRes = await fetch(`${cleanApiUrl}/football-popular-leagues`, { method: "GET", headers });
+        if (popRes.ok) {
+          const popJson = await popRes.json();
+          const popData = popJson.data || popJson.response?.popular || [];
+          if (Array.isArray(popData) && popData.length > 0) {
+            const dynamicIds = popData.map((l: any) => l.id || l.league?.id).filter(Boolean);
+            if (dynamicIds.length > 0) {
+              footballLeagues = dynamicIds;
+              console.log(`Dinamis! Menggunakan League IDs terbaru dari API: ${footballLeagues.join(', ')}`);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Gagal fetch liga populer, menggunakan fallback IDs.");
+      }
+
       const fetchLeagueMatches = async (leagueId: number) => {
-        const fixturesUrl = `${cleanApiUrl}/football-get-all-matches-by-league?leagueid=${leagueId}`;
-        const res = await fetch(fixturesUrl, { method: "GET", headers });
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-        const json = await res.json();
-        const matches = json.response?.matches || json.response || json.matches || [];
-        return { leagueId, matches };
+        try {
+          const fixturesUrl = `${cleanApiUrl}/football-get-all-matches-by-league?leagueid=${leagueId}`;
+          const res = await fetch(fixturesUrl, { method: "GET", headers });
+          if (!res.ok) {
+            console.error(`League ${leagueId} fetch failed with status ${res.status}`);
+            return { leagueId, matches: [] };
+          }
+          const json = await res.json();
+          
+          let extractedMatches: any[] = [];
+          
+          // Handle various response structures
+          if (Array.isArray(json)) {
+            // Structure: [ { competition, match: [...] }, ... ]
+            json.forEach((comp: any) => {
+              if (comp.match && Array.isArray(comp.match)) {
+                extractedMatches.push(...comp.match);
+              } else if (comp.matches && Array.isArray(comp.matches)) {
+                extractedMatches.push(...comp.matches);
+              }
+            });
+          } else if (json.data && Array.isArray(json.data)) {
+            extractedMatches = json.data;
+          } else if (json.response) {
+            extractedMatches = json.response.matches || (Array.isArray(json.response) ? json.response : []);
+          } else if (json.matches) {
+            extractedMatches = json.matches;
+          } else if (json.results) {
+            extractedMatches = json.results;
+          }
+
+          return { leagueId, matches: extractedMatches };
+        } catch (err) {
+          console.error(`Error fetching league ${leagueId}:`, err);
+          return { leagueId, matches: [] };
+        }
       };
 
       const results = await Promise.all(footballLeagues.map(fetchLeagueMatches));
       const today = new Date();
-      const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate()); 
+      // Start from yesterday to catch matches in progress or just finished
+      const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1); 
       const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30, 23, 59, 59, 999);
 
       const allMatches: any[] = [];
       results.forEach(({ leagueId, matches }) => {
-        matches.forEach((item: any) => allMatches.push({ ...item, leagueId }));
+        if (Array.isArray(matches)) {
+          matches.forEach((item: any) => allMatches.push({ ...item, leagueId }));
+        }
       });
 
-      let filteredMatches = allMatches.filter((item: any) => {
-        const rawDate = item.status?.utcTime || item.fixture?.date || item.timestamp || item.date;
-        if (!rawDate) return false;
-        const matchTime = new Date(rawDate);
-        return matchTime >= startDate && matchTime <= endDate;
+      console.log(`Total raw matches fetched: ${allMatches.length}`);
+      
+      let minDate: Date | null = null;
+      let maxDate: Date | null = null;
+      let invalidDatesCount = 0;
+
+      const parsedMatches = allMatches.map(item => {
+        const rawDate = item.matchDate || item.date || item.timestamp || item.status?.utcTime || item.fixture?.date;
+        if (!rawDate) return { ...item, _parsedDate: null };
+
+        let dateToParse = String(rawDate);
+        if (item.matchDate && item.matchTime && !dateToParse.includes("T")) {
+          // Attempt to combine date and time if separate
+          dateToParse = `${item.matchDate}T${item.matchTime}:00Z`;
+        }
+
+        const matchTime = new Date(dateToParse);
+        if (isNaN(matchTime.getTime())) {
+          invalidDatesCount++;
+          return { ...item, _parsedDate: null };
+        }
+
+        if (!minDate || matchTime < minDate) minDate = matchTime;
+        if (!maxDate || matchTime > maxDate) maxDate = matchTime;
+
+        return { ...item, _parsedDate: matchTime };
       });
+
+      console.log(`Date Analysis: Min=${minDate?.toISOString()}, Max=${maxDate?.toISOString()}, Invalid=${invalidDatesCount}`);
+      console.log(`Filter Range: ${startDate.toISOString()} TO ${endDate.toISOString()}`);
+
+      let filteredMatches = parsedMatches.filter((item: any) => {
+        if (!item._parsedDate) return false;
+        return item._parsedDate >= startDate && item._parsedDate <= endDate;
+      });
+
+      console.log(`Matches after date filtering: ${filteredMatches.length}`);
+
+      console.log(`Matches after date filtering: ${filteredMatches.length}`);
 
       if (filteredMatches.length > 0) {
         const mappedMatches = filteredMatches.map((item: any) => {
           let status = "scheduled";
-          if (item.status?.finished || item.fixture?.status?.short === "FT") status = "finished";
-          else if (item.status?.started || item.fixture?.status?.short === "1H") status = "live";
+          const rawStatus = (item.matchStatus || item.status?.long || item.fixture?.status?.long || "").toLowerCase();
+          
+          if (rawStatus.includes("finished") || rawStatus.includes("ft") || item.status?.finished || item.fixture?.status?.short === "FT") {
+            status = "finished";
+          } else if (rawStatus.includes("live") || rawStatus.includes("progress") || item.status?.started || item.fixture?.status?.short === "1H") {
+            status = "live";
+          }
+
+          // Support multiple team name keys: homeTeam, home.name, teams.home.name
+          const competitorA = item.homeTeam || item.home?.name || item.teams?.home?.name || "TBD";
+          const competitorB = item.awayTeam || item.away?.name || item.teams?.away?.name || "TBD";
+
+          // Support multiple kickoff time keys
+          let kickoffTime = item.matchDate && item.matchTime && !String(item.matchDate).includes("T") 
+            ? `${item.matchDate}T${item.matchTime}:00Z` 
+            : (item.date || item.status?.utcTime || item.fixture?.date || new Date().toISOString());
 
           return {
-            id: String(item.id || item.fixture?.id),
+            id: String(item.matchId || item.id || item.fixture?.id || `f-${Math.random().toString(36).substr(2, 9)}`),
             league_id: item.leagueId,
             sport_category: dynamicSportCategory,
-            competitor_a: item.home?.name || item.teams?.home?.name || null,
-            competitor_b: item.away?.name || item.teams?.away?.name || null,
-            event_title: item.tournament?.stage || item.league?.round || null,
-            kickoff_time: item.status?.utcTime || item.fixture?.date || new Date().toISOString(),
+            competitor_a: competitorA,
+            competitor_b: competitorB,
+            event_title: item.competition || item.tournament?.stage || item.league?.round || null,
+            kickoff_time: kickoffTime,
             status,
           };
         });
 
-        await supabase.from("matches").upsert(mappedMatches, { onConflict: "id" });
+        const { error: upsertError } = await supabase.from("matches").upsert(mappedMatches, { onConflict: "id" });
+        if (upsertError) {
+          console.error("Supabase upsert error:", upsertError);
+        } else {
+          console.log(`Successfully upserted ${mappedMatches.length} matches.`);
+        }
       }
 
       await supabase.from("sport_settings").update({ last_synced_at: new Date().toISOString() }).eq("id", sportId);
