@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,6 +50,7 @@ type FormState = {
   font_family: string;
   font_size: string;
   logo_url: string;
+  layout_variant: string;
 };
 
 type SportOption = {
@@ -107,109 +109,139 @@ function WidgetPreview({
     allowedSports.length === 0 || allowedSports.includes(s.id)
   );
 
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   // Determine if we should show the "Favorite Sports" step in preview
   const showSportsStep = visibleSports.length > 1;
   const showLeagueSelector = visibleSports.some(s => s.have_leagues);
 
+  const isSticky = config.layout_variant === "sticky";
+
+  const FormContent = (
+    <div
+      className={cn(
+        "w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl border transition-all duration-300",
+        isSticky && !isPreviewOpen ? "scale-90 opacity-0 pointer-events-none" : "scale-100 opacity-100"
+      )}
+      style={{ backgroundColor: cardBg, borderColor }}
+    >
+      <div className="h-1.5 w-full" style={{ backgroundColor: config.primary_color }} />
+
+      <div className="p-6 space-y-5">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0 overflow-hidden"
+            style={{ backgroundColor: config.primary_color }}
+          >
+            {config.logo_url ? (
+              <img src={config.logo_url} alt={tenant.name} className="w-full h-full object-cover" />
+            ) : (
+              tenant.name.charAt(0).toUpperCase()
+            )}
+          </div>
+          <div>
+            <p className="font-bold text-sm leading-tight" style={{ color: textColor }}>
+              {tenant.name}
+            </p>
+            <p className="text-xs" style={{ color: mutedColor }}>Sports Reminders</p>
+          </div>
+        </div>
+
+        {/* Mock inputs */}
+        {[
+          { label: "Email Address", placeholder: "you@example.com" },
+          { label: "WhatsApp Number", placeholder: "+62 812 3456 7890" },
+        ].map((field) => (
+          <div key={field.label} className="space-y-1.5">
+            <p className="text-xs font-semibold" style={{ color: mutedColor }}>{field.label}</p>
+            <div
+              className="w-full h-9 rounded-lg border px-3 flex items-center text-xs"
+              style={{ backgroundColor: inputBg, borderColor, color: mutedColor }}
+            >
+              {field.placeholder}
+            </div>
+          </div>
+        ))}
+
+        {/* Sports Selector Preview (Only if > 1) */}
+        {showSportsStep && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold" style={{ color: mutedColor }}>Favorite Sports</p>
+            <div className="flex flex-wrap gap-1.5">
+              {visibleSports.map((sport, i) => (
+                <div
+                  key={sport.id}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold"
+                  style={{ 
+                    borderColor: i === 0 ? config.primary_color : borderColor, 
+                    backgroundColor: i === 0 ? config.primary_color : "transparent",
+                    color: i === 0 ? "#ffffff" : textColor
+                  }}
+                >
+                  <span>{SPORT_EMOJI[sport.id] || "🏆"}</span>
+                  {sport.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* League Selector Preview - Only if needed */}
+        {showLeagueSelector && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold" style={{ color: mutedColor }}>Select Leagues to Follow</p>
+            <div className="space-y-1.5 border rounded-lg p-2 max-h-24 overflow-hidden" style={{ borderColor, backgroundColor: inputBg }}>
+              {[1, 2].map((_, i) => (
+                <div key={i} className="flex items-center gap-2 text-[10px] opacity-60">
+                  <div className="w-3 h-3 rounded border" style={{ borderColor }} />
+                  <div className="h-2 w-20 bg-slate-300 rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* CTA */}
+        <button
+          className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-all duration-200 shadow-md"
+          style={{ backgroundColor: config.primary_color }}
+        >
+          {config.custom_cta_text || "Remind Me"}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div
-      className="w-full h-full flex items-center justify-center p-6 transition-all duration-300"
+      className="w-full h-full flex items-center justify-center p-6 transition-all duration-300 relative"
       style={{ 
         backgroundColor: bgColor,
         fontFamily: config.font_family,
         fontSize: config.font_size
       }}
     >
-      <div
-        className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl border transition-all duration-300"
-        style={{ backgroundColor: cardBg, borderColor }}
-      >
-        <div className="h-1.5 w-full" style={{ backgroundColor: config.primary_color }} />
-
-        <div className="p-6 space-y-5">
-          {/* Header */}
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0 overflow-hidden"
-              style={{ backgroundColor: config.primary_color }}
-            >
-              {config.logo_url ? (
-                <img src={config.logo_url} alt={tenant.name} className="w-full h-full object-cover" />
-              ) : (
-                tenant.name.charAt(0).toUpperCase()
-              )}
-            </div>
-            <div>
-              <p className="font-bold text-sm leading-tight" style={{ color: textColor }}>
-                {tenant.name}
-              </p>
-              <p className="text-xs" style={{ color: mutedColor }}>Sports Reminders</p>
-            </div>
+      {isSticky ? (
+        <>
+          <div className="absolute inset-0 flex items-center justify-center p-6">
+            {FormContent}
           </div>
-
-          {/* Mock inputs */}
-          {[
-            { label: "Email Address", placeholder: "you@example.com" },
-            { label: "WhatsApp Number", placeholder: "+62 812 3456 7890" },
-          ].map((field) => (
-            <div key={field.label} className="space-y-1.5">
-              <p className="text-xs font-semibold" style={{ color: mutedColor }}>{field.label}</p>
-              <div
-                className="w-full h-9 rounded-lg border px-3 flex items-center text-xs"
-                style={{ backgroundColor: inputBg, borderColor, color: mutedColor }}
-              >
-                {field.placeholder}
-              </div>
-            </div>
-          ))}
-
-          {/* Sports Selector Preview (Only if > 1) */}
-          {showSportsStep && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold" style={{ color: mutedColor }}>Favorite Sports</p>
-              <div className="flex flex-wrap gap-1.5">
-                {visibleSports.map((sport, i) => (
-                  <div
-                    key={sport.id}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold"
-                    style={{ 
-                      borderColor: i === 0 ? config.primary_color : borderColor, 
-                      backgroundColor: i === 0 ? config.primary_color : "transparent",
-                      color: i === 0 ? "#ffffff" : textColor
-                    }}
-                  >
-                    <span>{SPORT_EMOJI[sport.id] || "🏆"}</span>
-                    {sport.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* League Selector Preview - Only if needed */}
-          {showLeagueSelector && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold" style={{ color: mutedColor }}>Select Leagues to Follow</p>
-              <div className="space-y-1.5 border rounded-lg p-2 max-h-24 overflow-hidden" style={{ borderColor, backgroundColor: inputBg }}>
-                {[1, 2].map((_, i) => (
-                  <div key={i} className="flex items-center gap-2 text-[10px] opacity-60">
-                    <div className="w-3 h-3 rounded border" style={{ borderColor }} />
-                    <div className="h-2 w-20 bg-slate-300 rounded animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* CTA */}
           <button
-            className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-all duration-200 shadow-md"
+            onClick={() => setIsPreviewOpen(!isPreviewOpen)}
+            className="absolute bottom-6 right-6 h-14 w-14 rounded-full shadow-xl flex items-center justify-center text-white transition-transform hover:scale-110 active:scale-95 z-50"
             style={{ backgroundColor: config.primary_color }}
           >
-            {config.custom_cta_text || "Remind Me"}
+            {isPreviewOpen ? (
+              <span className="text-xl font-bold">×</span>
+            ) : (
+              <LayoutTemplate className="h-6 w-6" />
+            )}
           </button>
-        </div>
-      </div>
+        </>
+      ) : (
+        FormContent
+      )}
     </div>
   );
 }
@@ -241,6 +273,7 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
       font_family: ws.font_family || tenant?.font_family || "var(--font-inter), sans-serif",
       font_size: ws.font_size || tenant?.font_size || "14px",
       logo_url: ws.logo_url || tenant?.logo_url || "",
+      layout_variant: ws.layout_variant || "inline",
     };
   };
 
@@ -412,26 +445,49 @@ export function WidgetStudio({ tenants, availableSports }: { tenants: Tenant[], 
                   ))}
                 </div>
 
-                {/* Theme Mode */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Theme Mode</Label>
-                  <Select
-                    value={formData.theme_mode}
-                    onValueChange={(val) => setFormData((p) => ({ ...p, theme_mode: val }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">
-                        <div className="flex items-center gap-2"><Monitor className="h-4 w-4" />Light Mode</div>
-                      </SelectItem>
-                      <SelectItem value="dark">
-                        <div className="flex items-center gap-2"><Smartphone className="h-4 w-4" />Dark Mode</div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <input type="hidden" name="theme_mode" value={formData.theme_mode} />
+                {/* Theme Mode & Layout Variant */}
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Theme Mode</Label>
+                    <Select
+                      value={formData.theme_mode}
+                      onValueChange={(val) => setFormData((p) => ({ ...p, theme_mode: val }))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="light">
+                          <div className="flex items-center gap-2"><Monitor className="h-4 w-4" />Light Mode</div>
+                        </SelectItem>
+                        <SelectItem value="dark">
+                          <div className="flex items-center gap-2"><Smartphone className="h-4 w-4" />Dark Mode</div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <input type="hidden" name="theme_mode" value={formData.theme_mode} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Layout Variant</Label>
+                    <Select
+                      value={formData.layout_variant}
+                      onValueChange={(val) => setFormData((p) => ({ ...p, layout_variant: val }))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="inline">
+                          <div className="flex items-center gap-2">Inline</div>
+                        </SelectItem>
+                        <SelectItem value="sticky">
+                          <div className="flex items-center gap-2">Sticky Popup</div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <input type="hidden" name="layout_variant" value={formData.layout_variant} />
+                  </div>
                 </div>
 
                 {/* Typography Configuration */}
