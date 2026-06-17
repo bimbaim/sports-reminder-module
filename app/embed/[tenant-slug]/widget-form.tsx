@@ -330,7 +330,7 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
             {/* Stage 1: Sport Category (Dropdown) */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                Cabang Olahraga <span className="text-red-500">*</span>
+                Cabang Olahragas <span className="text-red-500">*</span>
               </label>
               <select
                 value={selectedSport}
