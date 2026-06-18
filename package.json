@@ -3,6 +3,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:widget": "tsup widget/index.tsx --format iife --global-name SportsReminderWidgetBundle --minify --out-dir public --entry-names widget-bundle",
     "start": "next start",
     "lint": "eslint ."
   },
@@ -37,6 +38,7 @@
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
+    "tsup": "^8.3.5",
     "typescript": "^5"
   }
 }
