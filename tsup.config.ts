@@ -11,6 +11,9 @@ export default defineConfig({
   splitting: false,
   clean: false, // Don't clean public because it might contain other assets
   dts: false,
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production'),
+  },
   outExtension() {
     return {
       js: '.js',
