@@ -4,20 +4,17 @@ The widget has been refactored from an `<iframe>` to a native **Web Component** 
 
 ## 1. Building the Widget Bundle
 
-A new build process has been added to generate the standalone React bundle.
+The build process is integrated into the main application build.
 
-1. Install dependencies:
+1. Build everything (including widget):
    ```bash
-   npm install
+   npm run build
    ```
 
-2. Build the widget bundle and CSS:
+2. Or build only the widget assets:
    ```bash
-   # Build the JS bundle
    npm run build:widget
-
-   # Generate the CSS (ensure Tailwind processes the 'widget' folder)
-   npx tailwindcss -i ./app/globals.css -o ./public/widget.css --minify
+   npm run build:css
    ```
 
 These commands will create `public/widget-bundle.js` and `public/widget.css`.
@@ -49,7 +46,7 @@ The host website should now use the new custom element tag instead of the script
 ## 3. Architecture Overview
 
 - **`public/widget.js`**: The Custom Element definition. Handles Shadow DOM creation and dependency loading (React/ReactDOM).
-- **`widget/index.tsx`**: Entry point for the React bundle.
+- **`widget/widget-bundle.tsx`**: Entry point for the React bundle.
 - **`widget/standalone-form.tsx`**: The React component logic, refactored to use standard `fetch` API instead of Next.js Server Actions.
 - **API Routes**:
   - `/api/widget/config`: Fetches tenant and sport configuration.
