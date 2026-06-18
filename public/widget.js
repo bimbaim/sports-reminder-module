@@ -86,13 +86,19 @@
 
       const baseUrl = this._baseUrl;
       
+      // Clear loading state if it exists
+      const loadingEl = this.shadowRoot.querySelector(".loading");
+      if (loadingEl) {
+        loadingEl.remove();
+      }
+
       // Inject Styles
       const styleId = "sports-reminder-styles";
       if (!this.shadowRoot.getElementById(styleId)) {
         const link = document.createElement("link");
         link.id = styleId;
         link.rel = "stylesheet";
-        link.href = `${baseUrl}/widget.css`; // We will create this
+        link.href = `${baseUrl}/widget.css`;
         this.shadowRoot.appendChild(link);
       }
 
