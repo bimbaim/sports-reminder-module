@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { headers } from "next/headers";
-import { sendTemplateMessage } from "@/lib/whatsapp/send-template";
+import { WhatsAppService } from "@/lib/whatsapp/service";
 
 interface SubscriberWithTenant {
   id: string;
@@ -201,24 +201,24 @@ export async function GET(req: NextRequest) {
             { type: "text" as const, text: tenantName },
           ];
 
-          const result = await sendTemplateMessage(
+          const result = await WhatsAppService.sendTemplate(
             sub.whatsapp_number,
             templateName,
             "en",
             templateParameters
           );
 
-          if (result.success && result.providerMessageId) {
+          if (result.success && result.messageId) {
             await supabase
               .from("notification_logs")
               .update({
                 status: "sent",
-                provider_message_id: result.providerMessageId,
+                provider_message_id: result.messageId,
                 sent_at: new Date().toISOString(),
               })
               .eq("id", log.id);
 
-            console.log(`[WhatsApp Sync] Notification log ID ${log.id} successfully sent. Provider Message ID: ${result.providerMessageId}`);
+            console.log(`[WhatsApp Sync] Notification log ID ${log.id} successfully sent. Provider Message ID: ${result.messageId}`);
           } else {
             await supabase
               .from("notification_logs")

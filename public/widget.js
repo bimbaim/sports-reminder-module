@@ -67,9 +67,9 @@
       iframe.setAttribute("title", "Sports Reminder Widget");
       iframe.setAttribute("allowtransparency", "true");
 
-      var style = "border:none;display:block;";
+      var style = "border:none;display:block;background:transparent;";
       if (layout === "sticky") {
-        style += "position:fixed;bottom:0;right:0;z-index:999999;width:450px;height:800px;background:transparent;";
+        style += "position:fixed;bottom:0;right:0;z-index:999999;width:450px;height:800px;";
       } else {
         style += "width:100%;max-width:100%;min-height:650px;height:650px;";
       }

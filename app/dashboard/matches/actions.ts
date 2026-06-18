@@ -79,24 +79,9 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
     if (targetKey === "football") {
       console.log("=== EXECUTING DEDICATED FOOTBALL SYNC ===");
       
-      // Attempt to fetch CURRENT popular leagues instead of using hardcoded historical IDs
-      let footballLeagues = [42, 47, 53, 54, 55, 73, 77, 87, 132, 138];
-      try {
-        const popRes = await fetch(`${cleanApiUrl}/football-popular-leagues`, { method: "GET", headers });
-        if (popRes.ok) {
-          const popJson = await popRes.json();
-          const popData = popJson.data || popJson.response?.popular || [];
-          if (Array.isArray(popData) && popData.length > 0) {
-            const dynamicIds = popData.map((l: any) => l.id || l.league?.id).filter(Boolean);
-            if (dynamicIds.length > 0) {
-              footballLeagues = dynamicIds;
-              console.log(`Dinamis! Menggunakan League IDs terbaru dari API: ${footballLeagues.join(', ')}`);
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Gagal fetch liga populer, menggunakan fallback IDs.");
-      }
+      // Specify the league IDs to fetch
+      let footballLeagues = [55];
+      console.log(`Menggunakan League IDs tetap: ${footballLeagues.join(', ')}`);
 
       const fetchLeagueMatches = async (leagueId: number) => {
         try {
@@ -373,8 +358,7 @@ export async function ingestSportData(sportId: string): Promise<IngestionResult>
     }
 
     // --- GENERAL FALLBACK SYNC ---
-    let leaguesUrl = `${api_url}/leagues`;
-    if (targetKey === "football") leaguesUrl = `${api_url}/football-popular-leagues`;
+    const leaguesUrl = `${api_url}/leagues`;
 
     const res = await fetch(leaguesUrl, { method: "GET", headers, signal: AbortSignal.timeout(10000) });
     let leaguesList = [];

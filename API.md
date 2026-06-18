@@ -20,7 +20,27 @@
 * **Risk Level:** **HIGH**
   * *Reason:* Mismatched database column names cause it to fail on invocation. Commented authentication permits anyone to trigger match sync mock dispatches.
 
-### 2. `/auth/confirm`
+### 2. `/api/webhooks/whatsapp`
+* **Method:** `GET`, `POST`
+* **Purpose:** Handles Meta WhatsApp Cloud API webhook verification (GET) and receives incoming status updates/messages (POST).
+* **Authentication Required:** 
+  * GET: Hub Verify Token validation.
+  * POST: X-Hub-Signature-256 HMAC verification using App Secret.
+* **Request Schema (POST):** Meta Webhook JSON Payload.
+* **Response Schema:** 
+  ```json
+  {
+    "success": boolean,
+    "processed": number,
+    "error": string
+  }
+  ```
+* **Dependencies:** `WhatsAppService`, Supabase Admin client, `notification_logs` table.
+* **Called By:** Meta WhatsApp Cloud API.
+* **Risk Level:** **MEDIUM**
+  * *Reason:* Processes incoming external traffic. Secured by HMAC signature verification.
+
+### 3. `/auth/confirm`
 * **Method:** `GET`
 * **Purpose:** Handles verification of email OTP token hashes redirected from Supabase authentication mailings.
 * **Authentication Required:** No.

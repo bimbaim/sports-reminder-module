@@ -1,10 +1,59 @@
-import { MetaWebhookPayload } from "./types";
+import { NormalizedWebhookStatus, NormalizedIncomingMessage } from "./types";
 
-export interface NormalizedWebhookStatus {
-  messageId: string;
-  status: "sent" | "delivered" | "read" | "failed";
-  timestamp: Date;
-  error?: string;
+/**
+ * Parses and normalizes incoming messages from the Meta WhatsApp webhook payload.
+ */
+export function parseIncomingMessages(payload: any): NormalizedIncomingMessage[] {
+  const normalized: NormalizedIncomingMessage[] = [];
+
+  try {
+    const entries = payload?.entry;
+    if (!Array.isArray(entries)) return normalized;
+
+    for (const entry of entries) {
+      const changes = entry?.changes;
+      if (!Array.isArray(changes)) continue;
+
+      for (const change of changes) {
+        const value = change?.value;
+        const messages = value?.messages;
+        if (!Array.isArray(messages)) continue;
+
+        for (const rawMessage of messages) {
+          const from = rawMessage.from;
+          const messageId = rawMessage.id;
+          const type = rawMessage.type;
+          const timestampStr = rawMessage.timestamp;
+
+          let timestamp = new Date();
+          if (timestampStr) {
+            timestamp = new Date(parseInt(timestampStr, 10) * 1000);
+          }
+
+          const msg: NormalizedIncomingMessage = {
+            from,
+            messageId,
+            timestamp,
+            type,
+          };
+
+          if (type === "text") {
+            msg.body = rawMessage.text?.body;
+          } else if (["image", "video", "document", "audio"].includes(type)) {
+            const media = rawMessage[type];
+            msg.mediaId = media?.id;
+            msg.caption = media?.caption;
+          }
+
+          normalized.push(msg);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error in parseIncomingMessages:", err);
+  }
+
+  return normalized;
 }
 
 /**
