@@ -72,7 +72,7 @@ export async function getEventsForSport(sportCategory: string) {
   const supabase = createAdminClient();
   const { data: matches, error } = await supabase
     .from("matches")
-    .select("id, home_team, away_team, tournament_name, kickoff_time")
+    .select("id, competitor_a, competitor_b, tournament_name, kickoff_time")
     .eq("sport_category", sportCategory)
     .gte("kickoff_time", new Date().toISOString())
     .order("kickoff_time", { ascending: true })

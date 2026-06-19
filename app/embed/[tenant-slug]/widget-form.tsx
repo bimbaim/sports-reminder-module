@@ -28,8 +28,8 @@ type SportSetting = {
 
 type MatchItem = {
   id: string;
-  home_team: string;
-  away_team: string;
+  competitor_a: string;
+  competitor_b: string;
   tournament_name: string;
   kickoff_time: string;
 };
@@ -403,7 +403,7 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
                         ? availableClubs.map(c => <option key={c} value={c}>{c}</option>)
                         : availableEvents.map(ev => (
                             <option key={ev.id} value={ev.id}>
-                              {ev.home_team} vs {ev.away_team} ({ev.tournament_name})
+                              {ev.competitor_a} vs {ev.competitor_b} ({ev.tournament_name})
                             </option>
                           ))}
                     </select>

@@ -27,8 +27,8 @@ type SportSetting = {
 
 type MatchItem = {
   id: string;
-  home_team: string;
-  away_team: string;
+  competitor_a: string;
+  competitor_b: string;
   tournament_name: string;
   kickoff_time: string;
 };
@@ -106,16 +106,28 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    if (selectedSport) {
-      const filteredLeagues = initialLeagues.filter(l => l.sport_category === selectedSport);
-      setAvailableLeagues(filteredLeagues);
+    if (!selectedSport) {
+      setAvailableLeagues([]);
+      setSelectedLeague("");
+      setAvailableClubs([]);
+      setAvailableEvents([]);
+      setSelectedClub("");
+      return;
     }
+    const filteredLeagues = initialLeagues.filter(l => l.sport_category === selectedSport);
+    setAvailableLeagues(filteredLeagues);
+    setSelectedLeague("");
+    setAvailableClubs([]);
+    setAvailableEvents([]);
+    setSelectedClub("");
   }, [selectedSport, initialLeagues]);
 
   useEffect(() => {
     if (selectedLeague && selectedSportData?.have_leagues) {
       const fetchTeams = async () => {
         setLoadingStage3(true);
+        setAvailableClubs([]);
+        setSelectedClub("");
         try {
           const res = await fetch(`${baseUrl}/api/widget/matches?leagues=${selectedLeague}`);
           const data = await res.json();
@@ -128,6 +140,8 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
     } else if (selectedSport && !selectedSportData?.have_leagues) {
       const fetchEvents = async () => {
         setLoadingStage3(true);
+        setAvailableEvents([]);
+        setSelectedClub("");
         try {
           const res = await fetch(`${baseUrl}/api/widget/matches?sport=${selectedSport}`);
           const data = await res.json();
@@ -275,29 +289,60 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
 
           {step === 2 && (
             <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Select league</label>
-                <div className="relative">
-                  <select value={selectedLeague} onChange={e => setSelectedLeague(e.target.value)} className={selectBase}>
-                    <option value="">Select a league...</option>
-                    {availableLeagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
+              <p className="text-[13px] text-slate-500 mb-1">
+                Select your preferred {selectedSportData?.have_leagues ? "league and club" : "match"}.
+              </p>
+
+              {selectedSportData?.have_leagues && (
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                    <Trophy className="w-3.5 h-3.5" />
+                    Select league <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select value={selectedLeague} onChange={e => { setSelectedLeague(e.target.value); }} className={selectBase}>
+                      <option value="">Select a league...</option>
+                      {availableLeagues.map(l => <option key={l.id} value={l.id.toString()}>{l.name}</option>)}
+                    </select>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</span>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">{selectedSportData?.have_leagues ? "Favourite club" : "Match"}</label>
-                <div className="relative">
-                  <select value={selectedClub} onChange={e => setSelectedClub(e.target.value)} className={selectBase}>
-                    <option value="">Select...</option>
-                    {selectedSportData?.have_leagues 
-                      ? availableClubs.map(c => <option key={c} value={c}>{c}</option>)
-                      : availableEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.home_team} vs {ev.away_team}</option>)}
-                  </select>
+              )}
+
+              {(selectedLeague || !selectedSportData?.have_leagues) && (
+                <div className="space-y-1.5">
+                  <label className="flex items-center justify-between text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5">
+                      <Shirt className="w-3.5 h-3.5" />
+                      {selectedSportData?.have_leagues ? "Favourite club" : "Select a match"} <span className="text-red-500">*</span>
+                    </span>
+                    {loadingStage3 && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
+                  </label>
+                  <div className="relative">
+                    <select value={selectedClub} onChange={e => setSelectedClub(e.target.value)} disabled={loadingStage3} className={selectBase}>
+                      <option value="">{loadingStage3 ? "Loading..." : selectedSportData?.have_leagues ? "Select a club..." : "Select a match..."}</option>
+                      {selectedSportData?.have_leagues
+                        ? availableClubs.map(c => <option key={c} value={c}>{c}</option>)
+                        : availableEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.competitor_a} vs {ev.competitor_b}</option>)}
+                    </select>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">▾</span>
+                  </div>
                 </div>
-              </div>
+              )}
+
               <div className="flex gap-2 pt-1">
                 <button type="button" onClick={() => setStep(1)} className="h-11 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 bg-transparent flex items-center gap-1.5"><ArrowLeft className="w-4 h-4" /> Back</button>
-                <button type="button" onClick={() => (selectedSportData?.have_leagues ? selectedLeague && selectedClub : selectedClub) ? setStep(3) : null} className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-white" style={{ backgroundColor: primary }}>Next <ArrowRight className="w-4 h-4" /></button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const leagueOk = !selectedSportData?.have_leagues || !!selectedLeague;
+                    if (leagueOk && selectedClub) setStep(3);
+                  }}
+                  className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-white"
+                  style={{ backgroundColor: primary }}
+                >
+                  Next <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           )}
