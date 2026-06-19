@@ -61,9 +61,9 @@ const SPORT_EMOJI: Record<string, string> = {
 };
 
 const STEPS = [
-  { id: 1, label: "Olahraga" },
-  { id: 2, label: "Liga & Klub" },
-  { id: 3, label: "Kontakmu" },
+  { id: 1, label: "Sport" },
+  { id: 2, label: "League & Club" },
+  { id: 3, label: "Your Contact" },
 ];
 
 export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps) {
@@ -73,7 +73,7 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
   const primary    = ws.primary_color    || tenant.primary_color    || "#6366f1";
   const fontFamily = ws.font_family      || tenant.font_family      || "sans-serif";
   const fontSize   = ws.font_size        || tenant.font_size        || "14px";
-  const ctaText    = ws.custom_cta_text  || tenant.custom_cta_text  || "Ingatkan Saya";
+  const ctaText    = ws.custom_cta_text  || tenant.custom_cta_text  || "Remind Me";
   const logoUrl    = ws.logo_url         || tenant.logo_url         || null;
   const isSticky   = layout === "sticky";
 
@@ -149,7 +149,7 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
   const validateWhatsapp = (val: string) => {
     if (!val) return "WhatsApp number is required.";
     const clean = val.replace(/[\s\-\(\)\+]/g, "");
-    if (clean.length < 10) return "Too short.";
+    if (clean.length < 10) return "Please enter a valid WhatsApp number.";
     return "";
   };
 
@@ -157,7 +157,7 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
     e.preventDefault();
     const eErr = validateEmail(email);
     const wErr = validateWhatsapp(whatsapp);
-    const cErr = !isConsented ? "You must agree to notifications." : "";
+    const cErr = !isConsented ? "Please agree to receive notifications to continue." : "";
 
     setEmailError(eErr);
     setWhatsappError(wErr);
@@ -184,12 +184,12 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
 
       const data = await res.json();
       if (data.success) {
-        setMessage({ type: "success", text: "Terima kasih! Kamu telah terdaftar." });
+        setMessage({ type: "success", text: "Thank you! You have been successfully subscribed." });
       } else {
-        setMessage({ type: "error", text: data.error || "Gagal mendaftar." });
+        setMessage({ type: "error", text: data.error || "Subscription failed. Please try again." });
       }
     } catch (err) {
-      setMessage({ type: "error", text: "Terjadi kesalahan server." });
+      setMessage({ type: "error", text: "A server error occurred. Please try again later." });
     } finally {
       setLoading(false);
     }
@@ -226,7 +226,7 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
           ? "scale-90 opacity-0 pointer-events-none translate-y-4"
           : "scale-100 opacity-100 translate-y-0"
       )}
-      style={{ fontFamily, fontSize, ["--primary" as string]: primary }}
+      style={{ fontFamily, fontSize, ["--primary" as string]: primary }} 
     >
       <div className="bg-white dark:bg-slate-900 rounded-[20px] border border-slate-200 dark:border-slate-700 overflow-hidden shadow-lg">
         <div className="h-[3px] w-full" style={{ backgroundColor: primary }} />
@@ -237,7 +237,7 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
             </div>
             <div>
               <p className="text-[15px] font-medium text-slate-900 dark:text-slate-100 leading-tight m-0">{tenant.name}</p>
-              <p className="text-[12px] text-slate-500 dark:text-slate-400 m-0">Notifikasi pertandingan via WhatsApp</p>
+              <p className="text-[12px] text-slate-500 dark:text-slate-400 m-0">Match notifications via WhatsApp</p>
             </div>
           </div>
           <div className="flex items-center mb-5">
@@ -257,7 +257,7 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
         <div className="px-6 pt-5 pb-6">
           {step === 1 && (
             <div className="space-y-4">
-              <p className="text-[13px] text-slate-500 mb-4">Pilih cabang olahraga yang ingin kamu ikuti.</p>
+              <p className="text-[13px] text-slate-500 mb-4">Select the sport you would like to follow.</p>
               <div className="grid grid-cols-3 gap-2">
                 {allowedSports.map(sport => {
                   const active = selectedSport === sport.sport_slug;
@@ -269,26 +269,26 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
                   );
                 })}
               </div>
-              <button type="button" onClick={() => selectedSport ? setStep(2) : setSportError("Pilih olahraga.")} className="w-full h-11 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-white mt-4" style={{ backgroundColor: primary }}>Lanjut <ArrowRight className="w-4 h-4" /></button>
+              <button type="button" onClick={() => selectedSport ? setStep(2) : setSportError("Please select a sport.")} className="w-full h-11 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-white mt-4" style={{ backgroundColor: primary }}>Next <ArrowRight className="w-4 h-4" /></button>
             </div>
           )}
 
           {step === 2 && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Pilih liga</label>
+                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Select league</label>
                 <div className="relative">
                   <select value={selectedLeague} onChange={e => setSelectedLeague(e.target.value)} className={selectBase}>
-                    <option value="">Pilih liga...</option>
+                    <option value="">Select a league...</option>
                     {availableLeagues.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">{selectedSportData?.have_leagues ? "Klub utama" : "Pertandingan"}</label>
+                <label className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">{selectedSportData?.have_leagues ? "Favourite club" : "Match"}</label>
                 <div className="relative">
                   <select value={selectedClub} onChange={e => setSelectedClub(e.target.value)} className={selectBase}>
-                    <option value="">Pilih...</option>
+                    <option value="">Select...</option>
                     {selectedSportData?.have_leagues 
                       ? availableClubs.map(c => <option key={c} value={c}>{c}</option>)
                       : availableEvents.map(ev => <option key={ev.id} value={ev.id}>{ev.home_team} vs {ev.away_team}</option>)}
@@ -296,8 +296,8 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <button type="button" onClick={() => setStep(1)} className="h-11 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 bg-transparent flex items-center gap-1.5"><ArrowLeft className="w-4 h-4" /> Kembali</button>
-                <button type="button" onClick={() => (selectedSportData?.have_leagues ? selectedLeague && selectedClub : selectedClub) ? setStep(3) : null} className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-white" style={{ backgroundColor: primary }}>Lanjut <ArrowRight className="w-4 h-4" /></button>
+                <button type="button" onClick={() => setStep(1)} className="h-11 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 bg-transparent flex items-center gap-1.5"><ArrowLeft className="w-4 h-4" /> Back</button>
+                <button type="button" onClick={() => (selectedSportData?.have_leagues ? selectedLeague && selectedClub : selectedClub) ? setStep(3) : null} className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-white" style={{ backgroundColor: primary }}>Next <ArrowRight className="w-4 h-4" /></button>
               </div>
             </div>
           )}
@@ -306,7 +306,7 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[11px] font-medium text-slate-500 uppercase">Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputBase(!!emailError)} placeholder="kamu@email.com" />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputBase(!!emailError)} placeholder="you@example.com" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[11px] font-medium text-slate-500 uppercase">WhatsApp</label>
@@ -314,11 +314,11 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
               </div>
               <label className="flex items-start gap-2.5 p-3 rounded-[10px] border border-slate-200 bg-slate-50 cursor-pointer">
                 <input type="checkbox" checked={isConsented} onChange={e => setIsConsented(e.target.checked)} className="mt-1" />
-                <span className="text-[12px] text-slate-600">Saya setuju menerima notifikasi WhatsApp.</span>
+                <span className="text-[12px] text-slate-600">I agree to receive WhatsApp notifications about upcoming matches.</span>
               </label>
               {message && <div className={cn("p-3 rounded-lg text-xs", message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700")}>{message.text}</div>}
               <div className="flex gap-2 pt-1">
-                <button type="button" onClick={() => setStep(2)} className="h-11 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 bg-transparent flex items-center gap-1.5"><ArrowLeft className="w-4 h-4" /> Kembali</button>
+                <button type="button" onClick={() => setStep(2)} className="h-11 px-4 rounded-xl border border-slate-200 text-sm text-slate-600 bg-transparent flex items-center gap-1.5"><ArrowLeft className="w-4 h-4" /> Back</button>
                 <button type="submit" disabled={loading} className="flex-1 h-11 rounded-xl flex items-center justify-center gap-2 text-sm font-medium text-white" style={{ backgroundColor: primary }}>
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><BellPlus className="w-4 h-4" /> {ctaText}</>}
                 </button>
