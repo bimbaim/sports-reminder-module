@@ -112,7 +112,7 @@ export function WidgetForm({ tenant, allowedSports, leagues }: WidgetFormProps) 
   useEffect(() => {
     if (!selectedSport) { setAvailableLeagues([]); setSelectedLeague(""); return; }
     setLoadingLeagues(true);
-    setAvailableLeagues(leagues.filter(l => l.sport_category === selectedSport));
+    setAvailableLeagues(leagues.filter(l => l.sport_category?.toLowerCase() === selectedSport.toLowerCase()));
     setSelectedLeague("");
     setSelectedClub("");
     setLoadingLeagues(false);

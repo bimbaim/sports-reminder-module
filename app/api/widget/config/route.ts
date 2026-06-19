@@ -51,16 +51,27 @@ export async function GET(req: NextRequest) {
 
   const allowedSports = (activeSportsData || []).filter(s => allowedSportSlugs.includes(s.sport_slug));
 
-  // Fetch leagues
-  const { data: leagues } = await supabase
+  // Fetch all leagues then filter case-insensitively to handle sport_category
+  // values that may not exactly match sport_slug casing in the DB.
+  const { data: allLeagues } = await supabase
     .from("leagues")
     .select("id, name, sport_category, logo_url")
-    .in("sport_category", allowedSportSlugs)
     .order("name", { ascending: true });
+
+  const allowedSlugsLower = allowedSportSlugs.map(s => s.toLowerCase());
+  const leagues = (allLeagues || []).filter(
+    l => l.sport_category && allowedSlugsLower.includes(l.sport_category.toLowerCase())
+  );
+
+  // Normalise sport_category to lowercase so client-side filtering is reliable
+  const normalisedLeagues = leagues.map(l => ({
+    ...l,
+    sport_category: l.sport_category.toLowerCase(),
+  }));
 
   return NextResponse.json({
     tenant,
     allowedSports,
-    leagues: leagues || []
+    leagues: normalisedLeagues,
   });
 }

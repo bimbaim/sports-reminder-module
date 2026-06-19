@@ -45,12 +45,17 @@ export default async function EmbedWidgetPage({
   // Filter the full sport settings based on allowed slugs
   const allowedSports = (activeSportsData || []).filter(s => allowedSportSlugs.includes(s.sport_slug));
 
-  // Fetch leagues matching the allowed sports categories
-  const { data: leagues } = await supabase
+  // Fetch all leagues then filter case-insensitively to handle sport_category
+  // values that may not exactly match sport_slug casing in the DB.
+  const { data: allLeagues } = await supabase
     .from("leagues")
     .select("id, name, sport_category, logo_url")
-    .in("sport_category", allowedSportSlugs)
     .order("name", { ascending: true });
+
+  const allowedSlugsLower = allowedSportSlugs.map(s => s.toLowerCase());
+  const leagues = (allLeagues || [])
+    .filter(l => l.sport_category && allowedSlugsLower.includes(l.sport_category.toLowerCase()))
+    .map(l => ({ ...l, sport_category: l.sport_category.toLowerCase() }));
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-transparent">

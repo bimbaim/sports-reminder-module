@@ -114,7 +114,7 @@ export function StandaloneForm({ config, layout, baseUrl }: StandaloneFormProps)
       setSelectedClub("");
       return;
     }
-    const filteredLeagues = initialLeagues.filter(l => l.sport_category === selectedSport);
+    const filteredLeagues = initialLeagues.filter(l => l.sport_category?.toLowerCase() === selectedSport.toLowerCase());
     setAvailableLeagues(filteredLeagues);
     setSelectedLeague("");
     setAvailableClubs([]);
