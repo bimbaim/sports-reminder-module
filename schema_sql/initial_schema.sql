@@ -39,9 +39,9 @@ CREATE TABLE subscribers (
 CREATE TABLE matches (
     id VARCHAR(100) PRIMARY KEY,
     sport_category VARCHAR(50) DEFAULT 'football' NOT NULL,
-    home_team VARCHAR(100) NOT NULL,
-    away_team VARCHAR(100) NOT NULL,
-    tournament_name VARCHAR(255),
+    competitor_a VARCHAR(100) NOT NULL,
+    competitor_b VARCHAR(100) NOT NULL,
+    event_title VARCHAR(255),
     kickoff_time TIMESTAMPTZ NOT NULL,
     status VARCHAR(50) DEFAULT 'scheduled' NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL

@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { headers } from "next/headers";
 import { WhatsAppService } from "@/lib/whatsapp/service";
+import { getEmailService, isValidEmailProvider } from "@/lib/email/email-service-factory";
 
 interface SubscriberWithTenant {
   id: string;
+  tenant_id: string;
   email: string;
   whatsapp_number: string;
   favorite_sports: string[];
@@ -80,7 +82,7 @@ export async function GET(req: NextRequest) {
     // 2. Query subscribers that are consented
     const { data: rawSubscribers, error: subError } = await supabase
       .from("subscribers")
-      .select("id, email, whatsapp_number, favorite_sports, favorite_teams, is_consented, tenants(name)")
+      .select("id, tenant_id, email, whatsapp_number, favorite_sports, favorite_teams, is_consented, tenants(name)")
       .eq("is_consented", true);
 
     if (subError) {
@@ -244,14 +246,92 @@ export async function GET(req: NextRequest) {
           console.error(`[WhatsApp Sync] Unexpected error for log ID ${log.id}:`, err);
         }
       } else if (log.channel === "email") {
-        // Simple fallback success update for simulated email channel
-        await supabase
-          .from("notification_logs")
-          .update({
-            status: "success",
-            sent_at: new Date().toISOString(),
-          })
-          .eq("id", log.id);
+        if (!sub.email) continue;
+
+        try {
+          // Get tenant to fetch email provider config
+          const { data: tenant, error: tenantError } = await supabase
+            .from("tenants")
+            .select("id, email_provider, email_from_address")
+            .eq("id", sub.tenant_id)
+            .single();
+
+          if (tenantError || !tenant) {
+            throw new Error(`Failed to fetch tenant config: ${tenantError?.message || "Tenant not found"}`);
+          }
+
+          // Validate email provider
+          if (!isValidEmailProvider(tenant.email_provider)) {
+            throw new Error(`Invalid email provider configured for tenant: ${tenant.email_provider}`);
+          }
+
+          // Get email service instance
+          const emailService = getEmailService(tenant.email_provider);
+
+          // Prepare email content
+          const competitorA = task.match.competitor_a || "TBD";
+          const competitorB = task.match.competitor_b || "TBD";
+          const kickoffFormatted = new Date(task.match.kickoff_time).toLocaleString("en-US", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          });
+          const tenantName = sub.tenants?.name || "Sports Reminder";
+
+          const htmlContent = `
+            <h2>Match Alert from ${tenantName}</h2>
+            <p>Hi,</p>
+            <p>Your favorite teams are playing!</p>
+            <p><strong>${competitorA} vs ${competitorB}</strong></p>
+            <p>Kickoff: ${kickoffFormatted}</p>
+            <p>Don't miss the match!</p>
+          `;
+
+          // Send email via selected provider
+          const sendResult = await emailService.sendEmail({
+            to: sub.email,
+            subject: `${competitorA} vs ${competitorB} - Match Alert from ${tenantName}`,
+            htmlContent,
+            from: tenant.email_from_address || undefined,
+          });
+
+          // Update notification log
+          if (sendResult.success) {
+            await supabase
+              .from("notification_logs")
+              .update({
+                status: "sent",
+                provider: tenant.email_provider,
+                provider_message_id: sendResult.messageId,
+                sent_at: new Date().toISOString(),
+              })
+              .eq("id", log.id);
+
+            console.log(`[Email Sync] Notification log ID ${log.id} successfully sent via ${tenant.email_provider}. Message ID: ${sendResult.messageId}`);
+          } else {
+            await supabase
+              .from("notification_logs")
+              .update({
+                status: "failed",
+                provider: tenant.email_provider,
+                error_message: sendResult.error || "Failed to send email",
+                retry_count: 1,
+              })
+              .eq("id", log.id);
+
+            console.error(`[Email Sync] Failed to send log ID ${log.id} via ${tenant.email_provider}: ${sendResult.error}`);
+          }
+        } catch (err: any) {
+          await supabase
+            .from("notification_logs")
+            .update({
+              status: "failed",
+              error_message: err.message || "An unexpected error occurred during email dispatch.",
+              retry_count: 1,
+            })
+            .eq("id", log.id);
+
+          console.error(`[Email Sync] Unexpected error for log ID ${log.id}:`, err);
+        }
       }
     }
 
