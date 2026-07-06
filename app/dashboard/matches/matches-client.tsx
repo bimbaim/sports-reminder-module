@@ -23,6 +23,7 @@ type MatchItem = {
   event_title: string | null;
   kickoff_time: string;
   status: string;
+  league_id: number | null;
   leagues?: {
     sport_category: string;
     name: string;
@@ -208,9 +209,12 @@ export function MatchesClient({ initialMatches, activeSports, stats }: MatchesCl
               {initialMatches.length > 0 ? (
                 initialMatches.map((m) => {
                   const sportCategory = m.leagues?.sport_category || "football";
-                  const fixtureTitle = m.event_title 
-                    ? m.event_title 
-                    : `${m.competitor_a || "TBD"} vs ${m.competitor_b || "TBD"}`;
+                  const isFootballWorld2026 = sportCategory === "football" && m.league_id === 2026;
+                  const fixtureTitle = isFootballWorld2026
+                    ? `${m.competitor_a || "TBD"} vs ${m.competitor_b || "TBD"}`
+                    : (m.event_title
+                      ? m.event_title
+                      : `${m.competitor_a || "TBD"} vs ${m.competitor_b || "TBD"}`);
 
                   return (
                     <TableRow key={m.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">

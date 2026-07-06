@@ -18,6 +18,7 @@ export class WorldCupSyncService {
     this.apiKey = apiKey;
     this.apiUrl = apiUrl;
     this.sportCategory = sportCategory;
+    console.log(`[WorldCupSyncService] Constructor - apiKey exists: ${!!apiKey}, apiUrl: ${apiUrl}`);
   }
 
   /**
@@ -78,10 +79,13 @@ export class WorldCupSyncService {
   private async fetchStageData(stage: string): Promise<any[]> {
     const cleanApiUrl = this.apiUrl.replace(/\/+$/, "");
     const url = `${cleanApiUrl}/wc/draw?stage=${stage}`;
-    
+
+    console.log(`[DEBUG] Fetching URL: ${url}`);
+
     const response = await fetch(url, {
       method: "GET",
       headers: {
+        "Content-Type": "application/json",
         "x-rapidapi-key": this.apiKey,
         "x-rapidapi-host": new URL(cleanApiUrl).hostname,
         "Accept": "application/json",
@@ -90,13 +94,18 @@ export class WorldCupSyncService {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`[DEBUG] API Error Response: ${errorText}`);
       throw new Error(`API Error ${response.status}: ${errorText || response.statusText}`);
     }
 
     const json = await response.json();
-    
-    // Support various common JSON response structures
-    return json.response || json.matches || (Array.isArray(json) ? json : []);
+    console.log(`[DEBUG] API Response structure:`, Object.keys(json));
+    console.log(`[DEBUG] Full API Response:`, JSON.stringify(json).substring(0, 500));
+
+    // World Cup API returns matches in 'data' field
+    const result = json.data || json.response || json.matches || (Array.isArray(json) ? json : []);
+    console.log(`[DEBUG] Extracted ${result.length} matches for stage: ${stage}`);
+    return result;
   }
 
   /**
@@ -104,24 +113,33 @@ export class WorldCupSyncService {
    */
   private async upsertMatches(apiMatches: any[], stage: string) {
     const mappedMatches = apiMatches.map((item: any) => {
-      // Extract data with fallbacks based on suggested API fields
+      // Extract data with fallbacks based on API fields
       const kickoff = item.kickoff || item.date || item.timestamp || new Date().toISOString();
-      const round = item.round || "";
+      const round = item.round || item.roundName || "";
       const group = item.group || "";
       const home = item.home || item.homeTeam || "TBD";
       const away = item.away || item.awayTeam || "TBD";
-      const statusText = item.statusText || item.status || "scheduled";
-      
-      // Map API status to local status schema: scheduled, live, finished
+
+      // Map API status numbers to local status schema: scheduled, live, finished
       let status = "scheduled";
-      const s = statusText.toLowerCase();
-      if (s.includes("finish") || s.includes("ft") || s.includes("end") || s.includes("completed")) {
+      const statusCode = item.status;
+      if (statusCode === 3 || statusCode === 100) {
         status = "finished";
-      } else if (s.includes("live") || s.includes("playing") || s.includes("1h") || s.includes("2h")) {
+      } else if (statusCode === 2) {
         status = "live";
+      } else if (statusCode === 1) {
+        status = "scheduled";
       }
 
-      // Construct a meaningful event title combining Group and Round
+      // Fallback to statusText if status code is unknown
+      if (!status || [10, 11].includes(statusCode)) {
+        const statusText = (item.statusText || "").toLowerCase();
+        if (statusText.includes("finish")) status = "finished";
+        else if (statusText.includes("live")) status = "live";
+        else status = "scheduled";
+      }
+
+      // Construct event title with round info
       let eventTitle = "";
       if (group && round) eventTitle = `${group} - ${round}`;
       else if (group) eventTitle = group;
@@ -139,8 +157,7 @@ export class WorldCupSyncService {
         status: status,
       };
 
-      // Add score fields if available in API response
-      // Note: These require 'score_home' and 'score_away' columns in the 'matches' table
+      // Add score fields if available
       if (item.scoreHome !== undefined && item.scoreHome !== null) {
         matchData.score_home = item.scoreHome;
       }

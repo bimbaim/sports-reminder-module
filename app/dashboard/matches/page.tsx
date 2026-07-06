@@ -38,12 +38,13 @@ async function MatchesData() {
       event_title,
       kickoff_time,
       status,
-      leagues (
+      league_id,
+      leagues!league_id (
         sport_category,
         name
       )
     `)
-    .order("created_at", { ascending: false })
+    .order("kickoff_time", { ascending: false })
     .limit(10);
 
   const formattedMatches = (matches || []).map((m: any) => ({
@@ -53,6 +54,7 @@ async function MatchesData() {
     event_title: m.event_title,
     kickoff_time: m.kickoff_time,
     status: m.status,
+    league_id: m.league_id,
     leagues: m.leagues ? {
       sport_category: m.leagues.sport_category,
       name: m.leagues.name,
