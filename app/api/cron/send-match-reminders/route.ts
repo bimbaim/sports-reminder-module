@@ -33,11 +33,13 @@ export async function GET(request: NextRequest) {
   };
 
   // Verify cron secret from environment (security)
-  const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
+  const providedSecret = request.headers.get("x-cron-secret");
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (cronSecret && providedSecret !== cronSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } else if (!cronSecret) {
+    console.warn("[Cron] CRON_SECRET not set - security disabled");
   }
 
   const supabase = createAdminClient();
