@@ -92,16 +92,6 @@ export function generateMatchAlertTemplate(data: MatchAlertData): string {
                 </div>
             </div>
 
-            <!-- Call to Action -->
-            <div style="text-align: center; margin-bottom: 24px;">
-                <p style="margin: 0 0 16px 0; font-size: 14px; color: #4b5563; line-height: 1.5;">
-                    Don't miss this match! Get live updates and follow the action.
-                </p>
-                <a href="#" style="display: inline-block; background-color: ${tenantColor}; color: white; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-weight: 600; font-size: 14px;">
-                    View Match Details
-                </a>
-            </div>
-
             <!-- Info Box -->
             <div style="background-color: #f0f9ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 16px; margin-bottom: 24px;">
                 <p style="margin: 0; font-size: 13px; color: #1e40af; line-height: 1.5;">
