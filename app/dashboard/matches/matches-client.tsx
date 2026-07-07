@@ -230,7 +230,7 @@ export function MatchesClient({ initialMatches, activeSports, stats }: MatchesCl
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium text-slate-800">
-                        {fixtureTitle}
+                        {`${m.competitor_a || "TBD"} vs ${m.competitor_b || "TBD"}`}
                       </TableCell>
                       <TableCell className="text-slate-500 text-xs">
                         {format(new Date(m.kickoff_time), "eee, MMM d, yyyy • h:mm a")}

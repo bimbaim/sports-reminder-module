@@ -109,6 +109,59 @@ export class WorldCupSyncService {
   }
 
   /**
+   * FIFA 2026 Team ID to Name mapping
+   */
+  private getTeamName(teamId: any): string {
+    const teamMap: Record<number, string> = {
+      1: "Qatar",
+      2: "Senegal",
+      3: "Netherlands",
+      4: "Ecuador",
+      5: "England",
+      6: "Iran",
+      7: "USA",
+      8: "Wales",
+      9: "Argentina",
+      10: "Saudi Arabia",
+      11: "Mexico",
+      12: "Poland",
+      13: "France",
+      14: "Australia",
+      15: "Denmark",
+      16: "Tunisia",
+      17: "Spain",
+      18: "Germany",
+      19: "Japan",
+      20: "Costa Rica",
+      21: "Morocco",
+      22: "Croatia",
+      23: "Belgium",
+      24: "Canada",
+      25: "Brazil",
+      26: "Switzerland",
+      27: "Cameroon",
+      28: "Portugal",
+      29: "Uruguay",
+      30: "South Korea",
+      31: "Ghana",
+      32: "Gabon",
+      // Add more teams as needed for 2026
+    };
+
+    // If it's a number, try mapping
+    if (typeof teamId === 'number' && teamMap[teamId]) {
+      return teamMap[teamId];
+    }
+
+    // If already a string (team name), return as is
+    if (typeof teamId === 'string' && teamId && teamId !== 'null') {
+      return teamId;
+    }
+
+    return "TBD";
+  }
+
+  /**
    * Maps and upserts API data into the local Supabase database.
    */
   private async upsertMatches(apiMatches: any[], stage: string) {
@@ -117,8 +170,18 @@ export class WorldCupSyncService {
       const kickoff = item.kickoff || item.date || item.timestamp || new Date().toISOString();
       const round = item.round || item.roundName || "";
       const group = item.group || "";
-      const home = item.home || item.homeTeam || "TBD";
-      const away = item.away || item.awayTeam || "TBD";
+
+      // Handle both team names and team IDs
+      let home = item.homeTeam || item.home_team_name;
+      let away = item.awayTeam || item.away_team_name;
+
+      // If home/away are still not strings, try to map from teamId
+      if (!home || typeof home !== 'string') {
+        home = this.getTeamName(item.home || item.homeId);
+      }
+      if (!away || typeof away !== 'string') {
+        away = this.getTeamName(item.away || item.awayId);
+      }
 
       // Map API status numbers to local status schema: scheduled, live, finished
       let status = "scheduled";
