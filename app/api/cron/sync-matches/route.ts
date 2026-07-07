@@ -252,7 +252,7 @@ export async function GET(req: NextRequest) {
           // Get tenant to fetch email provider config
           const { data: tenant, error: tenantError } = await supabase
             .from("tenants")
-            .select("id, email_provider, email_from_address")
+            .select("id, email_provider")
             .eq("id", sub.tenant_id)
             .single();
 
@@ -291,7 +291,6 @@ export async function GET(req: NextRequest) {
             to: sub.email,
             subject: `${competitorA} vs ${competitorB} - Match Alert from ${tenantName}`,
             htmlContent,
-            from: tenant.email_from_address || undefined,
           });
 
           // Update notification log
