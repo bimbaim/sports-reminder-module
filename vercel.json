@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/sync-matches",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/send-match-reminders",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
