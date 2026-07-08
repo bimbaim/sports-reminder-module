@@ -209,12 +209,7 @@ export function MatchesClient({ initialMatches, activeSports, stats }: MatchesCl
               {initialMatches.length > 0 ? (
                 initialMatches.map((m) => {
                   const sportCategory = m.leagues?.sport_category || "football";
-                  const isFootballWorld2026 = sportCategory === "football" && m.league_id === 2026;
-                  const fixtureTitle = isFootballWorld2026
-                    ? `${m.competitor_a || "TBD"} vs ${m.competitor_b || "TBD"}`
-                    : (m.event_title
-                      ? m.event_title
-                      : `${m.competitor_a || "TBD"} vs ${m.competitor_b || "TBD"}`);
+                  const fixtureTitle = `${m.competitor_a || "TBD"} vs ${m.competitor_b || "TBD"}`;
 
                   return (
                     <TableRow key={m.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
@@ -230,7 +225,7 @@ export function MatchesClient({ initialMatches, activeSports, stats }: MatchesCl
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium text-slate-800">
-                        {`${m.competitor_a || "TBD"} vs ${m.competitor_b || "TBD"}`}
+                        {fixtureTitle}
                       </TableCell>
                       <TableCell className="text-slate-500 text-xs">
                         {format(new Date(m.kickoff_time), "eee, MMM d, yyyy • h:mm a")}
